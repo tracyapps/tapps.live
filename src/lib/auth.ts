@@ -1,6 +1,6 @@
 // Single-admin session auth: HMAC-signed expiry cookies, no dependencies.
 // Password comes from ADMIN_PASSWORD (env) — checked with scrypt timing-safe.
-import { createHmac, timingSafeEqual, randomBytes } from "node:crypto";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { env } from "./env";
 
 const COOKIE = "tapps_session";
@@ -60,10 +60,10 @@ export const sessionCookie = {
 };
 
 export function csrfToken(): string {
-  // Per-process token; SameSite=strict cookies + origin checks carry the
-  // real protection. Token adds defense-in-depth for the admin forms.
-  if (!process.env.TAPPS_CSRF) process.env.TAPPS_CSRF = randomBytes(16).toString("hex");
-  return process.env.TAPPS_CSRF;
+  // Derived from the session secret so every replica issues the same token —
+  // a random per-process token would 403 any form POST handled by a
+  // different instance (serverless / scaled replicas).
+  return createHmac("sha256", secret()).update("tapps-csrf-v1").digest("hex");
 }
 
 export function checkCsrf(token: string | undefined | null): boolean {

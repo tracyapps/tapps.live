@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "tapps.live — the live hub: projects, activity, streams, art, links",
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",

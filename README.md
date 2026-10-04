@@ -109,4 +109,6 @@ npm run feeds:refresh  # warm every enabled feed's cache now
 
 ## Deploy
 
-Any Node 20+ host works (Railway, Fly, a VPS with systemd, etc.). Run `npm run build`, then `node dist/server/entry.mjs` from the project root. Persist `data/` (and set `SESSION_SECRET`, `ADMIN_PASSWORD`); everything else — uploads included — lives in SQLite. `/robots.txt` keeps `/admin` out of crawlers.
+**Railway (recommended, fully documented):** see [DEPLOY-RAILWAY.md](DEPLOY-RAILWAY.md) — `railway.json`, `.nvmrc`, and `.railwayignore` are already in the repo; you add a volume at `/data`, set `ADMIN_PASSWORD` / `SESSION_SECRET` / `DATA_DIR=/data`, and point your domain at it.
+
+Any other Node 20+ host works too (Fly, Render, a VPS with systemd): run `npm run build`, then `node dist/server/entry.mjs` from the project root. Persist `data/` (or set `DATA_DIR` to an absolute path on a persistent volume); everything else — uploads included — lives in SQLite. `/api/health` is the liveness endpoint. `/robots.txt` keeps `/admin` out of crawlers.
