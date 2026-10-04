@@ -4,7 +4,7 @@ The app is a long-running Node server (Astro SSR standalone + SQLite + in-proces
 
 Already in the repo for Railway:
 
-- `railway.json` — Nixpacks build (`npm ci && npm run build`), start (`node dist/server/entry.mjs`), healthcheck against `/api/health`, restart-on-failure
+- `railway.json` — Nixpacks build (`npm install --include=dev && npm run build`), start (`node dist/server/entry.mjs`), healthcheck against `/api/health`, restart-on-failure
 - `.nvmrc` — pins Node 24 (matches local; better-sqlite3 prebuilt binaries resolve correctly)
 - `.railwayignore` — keeps `node_modules/`, `dist/`, `data/`, `.env`, and the 30 MB design export out of the upload
 - `/api/health` — liveness + feed-count JSON endpoint
@@ -79,6 +79,7 @@ Railway sets `NODE_ENV=production` and injects `PORT` automatically — the app 
 | Symptom | Fix |
 |---|---|
 | Healthcheck failing on first deploy | Check Logs — usually a missing `ADMIN_PASSWORD`/`SESSION_SECRET` or the volume not mounted at `/data` |
+| Build fails `EBUSY rmdir '/app/node_modules/.cache'` | Railway mounts `node_modules/.cache` as a build cache; `npm ci` tries to delete it. The repo's build command already uses `npm install` to avoid this — don't switch it back to `npm ci` |
 | Admin edits disappearing | `DATA_DIR` isn't set or volume isn't attached — the app fell back to ephemeral disk |
 | `better-sqlite3` build error | Ensure `.nvmrc` is present (Node 24); Railway's Nixpacks respects it |
 | Feeds stuck at "needs config" | Expected for Twitch/last.fm/YouTube until keys are added in Admin → Feeds |
