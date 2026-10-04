@@ -763,180 +763,6 @@ h4 {
   color: var(--fg-2);
 }
 
-/* ---- fill surfaces: self-contained ink, works with or without .tile--fill ----
-   Root bug in the export: JS-rendered tiles got "tile fill-lime" without
-   "tile--fill", so .tile p (grey) beat the fill overrides → grey on green.
-   Here the fill class alone flips ink + every text-bearing descendant. */
-.fill-magenta,
-.fill-lime,
-.fill-sun,
-.fill-hot,
-.fill-tang,
-.fill-mint {
-  color: var(--fill-ink);
-  border-color: transparent;
-}
-
-.fill-magenta { background: var(--accent); }
-.fill-lime { background: var(--success); }
-.fill-sun { background: var(--warn); }
-.fill-hot { background: var(--danger); }
-.fill-tang { background: #ff9577; }   /* oklab(sun 58% + accent) */
-.fill-mint { background: #59e6c2; }   /* oklab(mint 62% + accent) */
-.fill-grape {
-  background: #a31c71;                 /* oklab(accent 62% + surface-warm) */
-  color: var(--fg-2);
-  border-color: transparent;
-  --fill-ink: var(--fg-2);
-}
-
-.fill-magenta p,
-.fill-magenta .kicker,
-.fill-magenta .tag,
-.fill-magenta .tile-title a:hover,
-.fill-lime p,
-.fill-lime .kicker,
-.fill-lime .tag,
-.fill-lime .tile-title a:hover,
-.fill-sun p,
-.fill-sun .kicker,
-.fill-sun .tag,
-.fill-sun .tile-title a:hover,
-.fill-hot p,
-.fill-hot .kicker,
-.fill-hot .tag,
-.fill-hot .tile-title a:hover,
-.fill-tang p,
-.fill-tang .kicker,
-.fill-tang .tag,
-.fill-tang .tile-title a:hover,
-.fill-mint p,
-.fill-mint .kicker,
-.fill-mint .tag,
-.fill-mint .tile-title a:hover {
-  color: var(--fill-ink);
-}
-
-.fill-grape p,
-.fill-grape .kicker,
-.fill-grape .tag {
-  color: var(--fg-2);
-}
-
-.fill-magenta .tag,
-.fill-lime .tag,
-.fill-sun .tag,
-.fill-hot .tag,
-.fill-tang .tag,
-.fill-mint .tag {
-  border-color: rgba(5, 5, 5, 0.5);
-}
-
-.fill-grape .tag {
-  border-color: rgba(255, 255, 255, 0.34);
-}
-
-.fill-magenta .status,
-.fill-lime .status,
-.fill-sun .status,
-.fill-hot .status,
-.fill-tang .status,
-.fill-mint .status,
-.fill-grape .status {
-  color: inherit;
-}
-
-.fill-magenta .status,
-.fill-lime .status,
-.fill-sun .status,
-.fill-hot .status,
-.fill-tang .status,
-.fill-mint .status {
-  border-color: rgba(5, 5, 5, 0.5);
-}
-
-.fill-grape .status {
-  border-color: rgba(255, 255, 255, 0.34);
-}
-
-.fill-magenta .status .pip,
-.fill-lime .status .pip,
-.fill-sun .status .pip,
-.fill-hot .status .pip,
-.fill-tang .status .pip,
-.fill-mint .status .pip {
-  background: var(--fill-ink);
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.35);
-}
-
-.fill-magenta .progress-row .top,
-.fill-magenta .progress-row .top b,
-.fill-lime .progress-row .top,
-.fill-lime .progress-row .top b,
-.fill-sun .progress-row .top,
-.fill-sun .progress-row .top b,
-.fill-hot .progress-row .top,
-.fill-hot .progress-row .top b,
-.fill-tang .progress-row .top,
-.fill-tang .progress-row .top b,
-.fill-mint .progress-row .top,
-.fill-mint .progress-row .top b,
-.fill-grape .progress-row .top,
-.fill-grape .progress-row .top b {
-  color: inherit;
-}
-
-.fill-magenta .bar,
-.fill-lime .bar,
-.fill-sun .bar,
-.fill-hot .bar,
-.fill-tang .bar,
-.fill-mint .bar {
-  background: rgba(5, 5, 5, 0.26);
-  border-color: rgba(5, 5, 5, 0.46);
-}
-
-.fill-grape .bar {
-  background: rgba(255, 255, 255, 0.16);
-  border-color: rgba(255, 255, 255, 0.32);
-}
-
-.fill-magenta .bar-fill,
-.fill-magenta .bar-fill--good,
-.fill-magenta .bar-fill--warn,
-.fill-lime .bar-fill,
-.fill-lime .bar-fill--good,
-.fill-lime .bar-fill--warn,
-.fill-sun .bar-fill,
-.fill-sun .bar-fill--good,
-.fill-sun .bar-fill--warn,
-.fill-hot .bar-fill,
-.fill-hot .bar-fill--good,
-.fill-hot .bar-fill--warn,
-.fill-tang .bar-fill,
-.fill-tang .bar-fill--good,
-.fill-tang .bar-fill--warn,
-.fill-mint .bar-fill,
-.fill-mint .bar-fill--good,
-.fill-mint .bar-fill--warn {
-  background: var(--fill-ink);
-}
-
-.fill-grape .bar-fill,
-.fill-grape .bar-fill--good,
-.fill-grape .bar-fill--warn {
-  background: var(--fg);
-}
-
-.tile--fill {
-  color: var(--fill-ink);
-  border-color: transparent;
-}
-
-.tile--fill .tile-title a:hover {
-  text-decoration: underline;
-}
-
 /* status ---------- */
 .status {
   display: inline-flex;
@@ -2104,6 +1930,187 @@ details[open] > summary {
   justify-content: center;
   gap: var(--space-5);
 }
+
+/* ============================================================
+   FILL UTILITY LAYER — must stay AFTER every component that
+   declares a background (.tile, .social-tile, .chart, …).
+   Fills are equal-specificity single classes, so source order is
+   the only thing making them win. The test suite pins this order.
+   ============================================================ */
+/* ---- fill surfaces: self-contained ink, works with or without .tile--fill ----
+   Root bug in the export: JS-rendered tiles got "tile fill-lime" without
+   "tile--fill", so .tile p (grey) beat the fill overrides → grey on green.
+   Here the fill class alone flips ink + every text-bearing descendant. */
+.fill-magenta,
+.fill-lime,
+.fill-sun,
+.fill-hot,
+.fill-tang,
+.fill-mint {
+  color: var(--fill-ink);
+  border-color: transparent;
+}
+
+.fill-magenta { background: var(--accent); }
+.fill-lime { background: var(--success); }
+.fill-sun { background: var(--warn); }
+.fill-hot { background: var(--danger); }
+.fill-tang { background: #ff9577; }   /* oklab(sun 58% + accent) */
+.fill-mint { background: #59e6c2; }   /* oklab(mint 62% + accent) */
+.fill-grape {
+  background: #a31c71;                 /* oklab(accent 62% + surface-warm) */
+  color: var(--fg-2);
+  border-color: transparent;
+  --fill-ink: var(--fg-2);
+}
+
+.fill-magenta p,
+.fill-magenta .kicker,
+.fill-magenta .tag,
+.fill-magenta .tile-title a:hover,
+.fill-lime p,
+.fill-lime .kicker,
+.fill-lime .tag,
+.fill-lime .tile-title a:hover,
+.fill-sun p,
+.fill-sun .kicker,
+.fill-sun .tag,
+.fill-sun .tile-title a:hover,
+.fill-hot p,
+.fill-hot .kicker,
+.fill-hot .tag,
+.fill-hot .tile-title a:hover,
+.fill-tang p,
+.fill-tang .kicker,
+.fill-tang .tag,
+.fill-tang .tile-title a:hover,
+.fill-mint p,
+.fill-mint .kicker,
+.fill-mint .tag,
+.fill-mint .tile-title a:hover {
+  color: var(--fill-ink);
+}
+
+.fill-grape p,
+.fill-grape .kicker,
+.fill-grape .tag {
+  color: var(--fg-2);
+}
+
+.fill-magenta .tag,
+.fill-lime .tag,
+.fill-sun .tag,
+.fill-hot .tag,
+.fill-tang .tag,
+.fill-mint .tag {
+  border-color: rgba(5, 5, 5, 0.5);
+}
+
+.fill-grape .tag {
+  border-color: rgba(255, 255, 255, 0.34);
+}
+
+.fill-magenta .status,
+.fill-lime .status,
+.fill-sun .status,
+.fill-hot .status,
+.fill-tang .status,
+.fill-mint .status,
+.fill-grape .status {
+  color: inherit;
+}
+
+.fill-magenta .status,
+.fill-lime .status,
+.fill-sun .status,
+.fill-hot .status,
+.fill-tang .status,
+.fill-mint .status {
+  border-color: rgba(5, 5, 5, 0.5);
+}
+
+.fill-grape .status {
+  border-color: rgba(255, 255, 255, 0.34);
+}
+
+.fill-magenta .status .pip,
+.fill-lime .status .pip,
+.fill-sun .status .pip,
+.fill-hot .status .pip,
+.fill-tang .status .pip,
+.fill-mint .status .pip {
+  background: var(--fill-ink);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.35);
+}
+
+.fill-magenta .progress-row .top,
+.fill-magenta .progress-row .top b,
+.fill-lime .progress-row .top,
+.fill-lime .progress-row .top b,
+.fill-sun .progress-row .top,
+.fill-sun .progress-row .top b,
+.fill-hot .progress-row .top,
+.fill-hot .progress-row .top b,
+.fill-tang .progress-row .top,
+.fill-tang .progress-row .top b,
+.fill-mint .progress-row .top,
+.fill-mint .progress-row .top b,
+.fill-grape .progress-row .top,
+.fill-grape .progress-row .top b {
+  color: inherit;
+}
+
+.fill-magenta .bar,
+.fill-lime .bar,
+.fill-sun .bar,
+.fill-hot .bar,
+.fill-tang .bar,
+.fill-mint .bar {
+  background: rgba(5, 5, 5, 0.26);
+  border-color: rgba(5, 5, 5, 0.46);
+}
+
+.fill-grape .bar {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.32);
+}
+
+.fill-magenta .bar-fill,
+.fill-magenta .bar-fill--good,
+.fill-magenta .bar-fill--warn,
+.fill-lime .bar-fill,
+.fill-lime .bar-fill--good,
+.fill-lime .bar-fill--warn,
+.fill-sun .bar-fill,
+.fill-sun .bar-fill--good,
+.fill-sun .bar-fill--warn,
+.fill-hot .bar-fill,
+.fill-hot .bar-fill--good,
+.fill-hot .bar-fill--warn,
+.fill-tang .bar-fill,
+.fill-tang .bar-fill--good,
+.fill-tang .bar-fill--warn,
+.fill-mint .bar-fill,
+.fill-mint .bar-fill--good,
+.fill-mint .bar-fill--warn {
+  background: var(--fill-ink);
+}
+
+.fill-grape .bar-fill,
+.fill-grape .bar-fill--good,
+.fill-grape .bar-fill--warn {
+  background: var(--fg);
+}
+
+.tile--fill {
+  color: var(--fill-ink);
+  border-color: transparent;
+}
+
+.tile--fill .tile-title a:hover {
+  text-decoration: underline;
+}
+
 
 @media (max-width: 1023px) {
   .wrap { padding-inline: var(--container-gutter-tablet); }
