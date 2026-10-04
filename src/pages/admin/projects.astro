@@ -1,0 +1,125 @@
+---
+import AdminLayout from "../../layouts/AdminLayout.astro";
+import { csrfToken } from "../../lib/auth";
+import { getProjects } from "../../lib/db";
+
+const csrf = csrfToken();
+const back = "/admin/projects";
+const projects = getProjects();
+
+const statuses = ["live", "beta", "alpha", "build", "soon"];
+const fills = ["", "fill-magenta", "fill-lime", "fill-sun", "fill-hot", "fill-tang", "fill-mint", "fill-grape"];
+---
+<AdminLayout title="Projects" sub="The status board source of truth. Roadmaps sync automatically from a repo's ROADMAP.md when the GitHub feed runs; manual edits here win until the next sync.">
+  <div class="table-wrap" style="margin-bottom:28px">
+    <table class="admin-table">
+      <thead><tr><th>#</th><th>name</th><th>status</th><th>progress</th><th>repo sync</th><th>actions</th></tr></thead>
+      <tbody>
+        {projects.map((p) => (
+          <tr>
+            <td class="muted">{p.sort}</td>
+            <td><b>{p.name}</b><br /><span class="kicker">{p.slug}</span></td>
+            <td><span class={`status status--${p.status}`}><span class="pip" aria-hidden="true" />{p.status}</span></td>
+            <td>{p.progress == null ? "—" : `${p.progress}%`}</td>
+            <td>{p.repo ? <code style="font-family:var(--font-mono);font-size:11px">{p.repo}/{p.roadmap_path}</code> : <span class="muted">manual</span>}</td>
+            <td class="actions">
+              <form method="post" action="/admin/api/action" style="display:inline">
+                <input type="hidden" name="op" value="move-project" /><input type="hidden" name="csrf" value={csrf} />
+                <input type="hidden" name="back" value={back} /><input type="hidden" name="id" value={p.id} /><input type="hidden" name="dir" value="up" />
+                <button class="btn btn--solid btn--sm" type="submit" aria-label={`Move ${p.name} up`}>↑</button>
+              </form>
+              <form method="post" action="/admin/api/action" style="display:inline">
+                <input type="hidden" name="op" value="move-project" /><input type="hidden" name="csrf" value={csrf} />
+                <input type="hidden" name="back" value={back} /><input type="hidden" name="id" value={p.id} /><input type="hidden" name="dir" value="down" />
+                <button class="btn btn--solid btn--sm" type="submit" aria-label={`Move ${p.name} down`}>↓</button>
+              </form>
+              <form method="post" action="/admin/api/action" style="display:inline">
+                <input type="hidden" name="op" value="delete-project" /><input type="hidden" name="csrf" value={csrf} />
+                <input type="hidden" name="back" value={back} /><input type="hidden" name="id" value={p.id} />
+                <button class="btn btn--danger btn--sm btn--mono" type="submit">delete</button>
+              </form>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+
+  {projects.map((p) => (
+    <details class="form-block" style="margin-bottom:16px">
+      <summary>edit — {p.name} <span class="kicker" style="margin-left:auto">{p.progress == null ? "no bar" : `${p.progress}%`}</span></summary>
+      <form class="form-body" method="post" action="/admin/api/action" enctype="multipart/form-data">
+        <input type="hidden" name="op" value="save-project" />
+        <input type="hidden" name="csrf" value={csrf} />
+        <input type="hidden" name="back" value={back} />
+        <input type="hidden" name="id" value={p.id} />
+        <div class="form-grid">
+          <div class="field"><label for={`slug-${p.id}`}>slug</label><input id={`slug-${p.id}`} name="slug" value={p.slug} /></div>
+          <div class="field"><label for={`name-${p.id}`}>name</label><input id={`name-${p.id}`} name="name" value={p.name} /></div>
+          <div class="field"><label for={`url-${p.id}`}>url</label><input id={`url-${p.id}`} name="url" value={p.url} /></div>
+          <div class="field"><label for={`since-${p.id}`}>since</label><input id={`since-${p.id}`} name="since" value={p.since} /></div>
+          <div class="field">
+            <label for={`status-${p.id}`}>status</label>
+            <select id={`status-${p.id}`} name="status">
+              {statuses.map((s) => <option value={s} selected={p.status === s}>{s}</option>)}
+            </select>
+          </div>
+          <div class="field"><label for={`sl-${p.id}`}>status label</label><input id={`sl-${p.id}`} name="status_label" value={p.status_label} /></div>
+          <div class="field">
+            <label for={`fill-${p.id}`}>fill</label>
+            <select id={`fill-${p.id}`} name="fill">
+              {fills.map((f) => <option value={f} selected={p.fill === f}>{f || "none (dark card)"}</option>)}
+            </select>
+          </div>
+          <div class="field"><label for={`prog-${p.id}`}>progress % (blank = none)</label><input id={`prog-${p.id}`} name="progress" value={p.progress ?? ""} /></div>
+          <div class="field"><label for={`repo-${p.id}`}>repo (owner/name)</label><input id={`repo-${p.id}`} name="repo" value={p.repo} placeholder="tracyapps/EXP-design" /></div>
+          <div class="field"><label for={`rp-${p.id}`}>roadmap file</label><input id={`rp-${p.id}`} name="roadmap_path" value={p.roadmap_path} placeholder="ROADMAP.md" /></div>
+          <div class="field"><label for={`sort-${p.id}`}>sort</label><input id={`sort-${p.id}`} name="sort" value={p.sort} /></div>
+        </div>
+        <div class="field"><label for={`tagline-${p.id}`}>tagline</label><textarea id={`tagline-${p.id}`} name="tagline" rows="2">{p.tagline}</textarea></div>
+        <div class="form-grid">
+          <div class="field"><label for={`stack-${p.id}`}>stack (comma sep)</label><input id={`stack-${p.id}`} name="stack" value={p.stack.join(", ")} /></div>
+          <div class="field"><label for={`tags-${p.id}`}>tags (comma sep)</label><input id={`tags-${p.id}`} name="tags" value={p.tags.join(", ")} /></div>
+        </div>
+        <div class="field">
+          <label for={`roadmap-${p.id}`}>roadmap phases — one per line: label | %</label>
+          <textarea id={`roadmap-${p.id}`} name="roadmap" rows="6">{p.roadmap.map((r) => `${r.label} | ${r.pct}`).join("\n")}</textarea>
+        </div>
+        <div><button class="btn btn--primary btn--sm btn--mono" type="submit">save {p.name}</button></div>
+      </form>
+    </details>
+  ))}
+
+  <details class="form-block">
+    <summary>+ new project</summary>
+    <form class="form-body" method="post" action="/admin/api/action">
+      <input type="hidden" name="op" value="save-project" />
+      <input type="hidden" name="csrf" value={csrf} />
+      <input type="hidden" name="back" value={back} />
+      <div class="form-grid">
+        <div class="field"><label for="n-slug">slug</label><input id="n-slug" name="slug" placeholder="new-thing" /></div>
+        <div class="field"><label for="n-name">name</label><input id="n-name" name="name" placeholder="new thing" /></div>
+        <div class="field"><label for="n-url">url</label><input id="n-url" name="url" placeholder="https://" /></div>
+        <div class="field"><label for="n-since">since</label><input id="n-since" name="since" placeholder="2026" /></div>
+        <div class="field">
+          <label for="n-status">status</label>
+          <select id="n-status" name="status">{statuses.map((s) => <option value={s}>{s}</option>)}</select>
+        </div>
+        <div class="field"><label for="n-sl">status label</label><input id="n-sl" name="status_label" placeholder="Live" /></div>
+        <div class="field">
+          <label for="n-fill">fill</label>
+          <select id="n-fill" name="fill">{fills.map((f) => <option value={f}>{f || "none (dark card)"}</option>)}</select>
+        </div>
+        <div class="field"><label for="n-prog">progress % (blank = none)</label><input id="n-prog" name="progress" /></div>
+        <div class="field"><label for="n-repo">repo (owner/name)</label><input id="n-repo" name="repo" placeholder="optional" /></div>
+        <div class="field"><label for="n-rp">roadmap file</label><input id="n-rp" name="roadmap_path" value="ROADMAP.md" /></div>
+      </div>
+      <div class="field"><label for="n-tagline">tagline</label><textarea id="n-tagline" name="tagline" rows="2"></textarea></div>
+      <div class="form-grid">
+        <div class="field"><label for="n-stack">stack (comma sep)</label><input id="n-stack" name="stack" /></div>
+        <div class="field"><label for="n-tags">tags (comma sep)</label><input id="n-tags" name="tags" /></div>
+      </div>
+      <div><button class="btn btn--primary btn--sm btn--mono" type="submit">create project</button></div>
+    </form>
+  </details>
+</AdminLayout>

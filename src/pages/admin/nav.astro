@@ -1,0 +1,91 @@
+---
+import AdminLayout from "../../layouts/AdminLayout.astro";
+import { csrfToken } from "../../lib/auth";
+import { getNav } from "../../lib/db";
+
+const csrf = csrfToken();
+const back = "/admin/nav";
+const nav = getNav(false);
+---
+<AdminLayout title="Nav" sub="Reorder, rename, hide, or add nav items. Order here is the order everywhere.">
+  <div class="table-wrap">
+    <table class="admin-table">
+      <thead><tr><th>#</th><th>label</th><th>href</th><th>visible</th><th>external</th><th>actions</th></tr></thead>
+      <tbody>
+        {nav.map((item) => (
+          <tr>
+            <td class="muted">{item.sort}</td>
+            <td><b>{item.label}</b></td>
+            <td><code style="font-family:var(--font-mono);font-size:12px">{item.href}</code></td>
+            <td>{item.visible ? "✓" : "hidden"}</td>
+            <td>{item.external ? "↗" : "internal"}</td>
+            <td class="actions">
+              <form method="post" action="/admin/api/action" style="display:inline">
+                <input type="hidden" name="op" value="move-nav" /><input type="hidden" name="csrf" value={csrf} />
+                <input type="hidden" name="back" value={back} /><input type="hidden" name="id" value={item.id} /><input type="hidden" name="dir" value="up" />
+                <button class="btn btn--solid btn--sm" type="submit" aria-label="up">↑</button>
+              </form>
+              <form method="post" action="/admin/api/action" style="display:inline">
+                <input type="hidden" name="op" value="move-nav" /><input type="hidden" name="csrf" value={csrf} />
+                <input type="hidden" name="back" value={back} /><input type="hidden" name="id" value={item.id} /><input type="hidden" name="dir" value="down" />
+                <button class="btn btn--solid btn--sm" type="submit" aria-label="down">↓</button>
+              </form>
+              <form method="post" action="/admin/api/action" style="display:inline">
+                <input type="hidden" name="op" value="delete-nav" /><input type="hidden" name="csrf" value={csrf} />
+                <input type="hidden" name="back" value={back} /><input type="hidden" name="id" value={item.id} />
+                <button class="btn btn--danger btn--sm btn--mono" type="submit">remove</button>
+              </form>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+
+  <h2 style="font-size:var(--text-lg);margin:32px 0 14px">edit items</h2>
+  {nav.map((item) => (
+    <details class="form-block" style="margin-bottom:12px">
+      <summary>{item.label} <span class="kicker" style="margin-left:auto">{item.href}</span></summary>
+      <form class="form-body" method="post" action="/admin/api/action">
+        <input type="hidden" name="op" value="save-nav" />
+        <input type="hidden" name="csrf" value={csrf} />
+        <input type="hidden" name="back" value={back} />
+        <input type="hidden" name="id" value={item.id} />
+        <div class="form-grid">
+          <div class="field"><label>label</label><input name="label" value={item.label} /></div>
+          <div class="field"><label>href</label><input name="href" value={item.href} /></div>
+        </div>
+        <div class="form-row">
+          <label class="switch">
+            <input type="checkbox" name="visible" checked={item.visible} />
+            <span class="track" aria-hidden="true" />
+            <span class="sw-label">visible</span>
+          </label>
+          <label class="switch">
+            <input type="checkbox" name="external" checked={item.external} />
+            <span class="track" aria-hidden="true" />
+            <span class="sw-label">opens new tab</span>
+          </label>
+        </div>
+        <div><button class="btn btn--primary btn--sm btn--mono" type="submit">save</button></div>
+      </form>
+    </details>
+  ))}
+
+  <details class="form-block">
+    <summary>+ add nav item</summary>
+    <form class="form-body" method="post" action="/admin/api/action">
+      <input type="hidden" name="op" value="save-nav" />
+      <input type="hidden" name="csrf" value={csrf} />
+      <input type="hidden" name="back" value={back} />
+      <div class="form-grid">
+        <div class="field"><label>label</label><input name="label" placeholder="Now" /></div>
+        <div class="field"><label>href</label><input name="href" placeholder="/now or https://" /></div>
+        <div class="field"><label>sort</label><input name="sort" value={nav.length} /></div>
+      </div>
+      <label class="switch"><input type="checkbox" name="visible" checked /><span class="track" aria-hidden="true" /><span class="sw-label">visible</span></label>
+      <label class="switch"><input type="checkbox" name="external" /><span class="track" aria-hidden="true" /><span class="sw-label">opens new tab</span></label>
+      <div><button class="btn btn--primary btn--sm btn--mono" type="submit">add item</button></div>
+    </form>
+  </details>
+</AdminLayout>

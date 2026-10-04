@@ -1,0 +1,67 @@
+---
+interface Row {
+  label: string;
+  pct: number;
+}
+interface Props {
+  title: string;
+  note?: string;
+  rows: Row[];
+  caption?: string;
+}
+const { title, note, rows, caption } = Astro.props;
+
+const palette = [
+  "var(--accent)",
+  "var(--success)",
+  "var(--warn)",
+  "var(--danger)",
+  "#a31c71",
+  "var(--muted)",
+  "var(--mint)"
+];
+const total = rows.reduce((a, b) => a + b.pct, 0);
+const radius = 60;
+const circ = 2 * Math.PI * radius;
+let offset = 0;
+const arcs = rows.map((d, i) => {
+  const len = total ? (d.pct / total) * circ : 0;
+  const seg = {
+    color: palette[i % palette.length],
+    len,
+    dasharray: `${len} ${circ - len}`,
+    dashoffset: -offset
+  };
+  offset += len;
+  return seg;
+});
+---
+<div class="chart">
+  <div class="chart-title"><span>{title}</span>{note && <span>{note}</span>}</div>
+  <div class="donut">
+    <svg viewBox="0 0 148 148" role="img" aria-label={`${title} — ${rows.map((r) => `${r.label} ${r.pct}%`).join(", ")}`}>
+      <circle cx="74" cy="74" r="60" fill="none" stroke="var(--border-soft)" stroke-width="18" />
+      {arcs.map((a) => (
+        <circle
+          cx="74" cy="74" r={radius}
+          fill="none"
+          stroke={a.color}
+          stroke-width="18"
+          stroke-dasharray={a.dasharray}
+          stroke-dashoffset={a.dashoffset}
+          transform="rotate(-90 74 74)"
+        />
+      ))}
+    </svg>
+    <div class="donut-legend">
+      {rows.map((d, i) => (
+        <div class="row">
+          <span class="swatch" style={`background:${palette[i % palette.length]}`} />
+          <span>{d.label}</span>
+          <b>{d.pct}%</b>
+        </div>
+      ))}
+    </div>
+  </div>
+  {caption && <p class="chart-note">{caption}</p>}
+</div>

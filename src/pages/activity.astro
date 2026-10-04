@@ -1,0 +1,205 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import BarChart from "../components/BarChart.astro";
+import Donut from "../components/Donut.astro";
+import Heatmap from "../components/Heatmap.astro";
+import { getFeedItems, getFeedMeta, getFeedStatuses } from "../feeds/runner";
+import { timeAgo } from "../lib/format";
+
+const events = getFeedItems("github", 30);
+const ghStatus = getFeedStatuses().find((s) => s.id === "github");
+const hasLive = events.length > 0;
+
+const SAMPLE_LANGS = [
+  { label: "Swift", pct: 30 },
+  { label: "TypeScript", pct: 24 },
+  { label: "PHP", pct: 18 },
+  { label: "CSS", pct: 14 },
+  { label: "Astro", pct: 9 },
+  { label: "Other", pct: 5 }
+];
+const ghMeta = getFeedMeta<{
+  langs?: { label: string; pct: number }[];
+  repos?: { name: string; url: string; stars: number; pushed: string }[];
+}>("github");
+const langs = ghMeta?.langs?.length ? ghMeta.langs : SAMPLE_LANGS;
+
+const filters = [
+  { key: "all", label: "All" },
+  { key: "PushEvent", label: "Pushes" },
+  { key: "PullRequestEvent", label: "PRs" },
+  { key: "CreateEvent", label: "Creates" },
+  { key: "IssuesEvent", label: "Issues" },
+  { key: "ReleaseEvent", label: "Releases" }
+];
+
+const counts = new Map<string, number>();
+for (const e of events) if (e.kind) counts.set(e.kind, (counts.get(e.kind) || 0) + 1);
+const mixRows = hasLive
+  ? [...counts.entries()]
+      .map(([k, n]) => ({ label: k.replace(/Event$/, ""), pct: Math.round((n / events.length) * 100) }))
+      .sort((a, b) => b.pct - a.pct)
+      .slice(0, 6)
+  : [];
+---
+<BaseLayout title="Activity — tapps.live" description="A live GitHub activity stream for @tracyapps: pushes, PRs, releases, issues — the paper trail behind every project.">
+  <section class="hero section--flush">
+    <div class="hero-bg" aria-hidden="true"></div>
+    <div class="wrap hero-inner">
+      <span class="eyebrow">03 — the paper trail</span>
+      <h1 class="wordmark glitch" data-text="COMMIT STREAM" style="font-size:clamp(36px,8vw,104px)">COMMIT STREAM</h1>
+      <p class="hero-sub">A timeline, not a grid: every item below is a real public event pulled from GitHub and cached on the hub. If the API is down, this page says so instead of faking it.</p>
+      <p style="margin-top:20px">
+        <span class="kicker" id="commit-status" aria-live="polite">
+          {hasLive ? `Live · ${events.length} recent public events from @tracyapps · refreshed ${timeAgo(ghStatus?.lastRefreshAt)}` : ghStatus?.status === "disabled" ? "Feed off — flip the switch in the admin console." : "Connecting to GitHub… the first refresh lands in a moment."}
+        </span>
+      </p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap stream-wrap">
+      <div>
+        <div class="filter-chips" role="group" aria-label="Filter activity by type">
+          {filters.map((f, i) => (
+            <button class="btn btn--solid btn--sm btn--mono" type="button" data-filter={f.key} aria-pressed={i === 0 ? "true" : "false"} aria-controls="commit-stream">
+              {f.label}
+            </button>
+          ))}
+        </div>
+
+        {hasLive ? (
+          <ol class="stream" id="commit-stream" aria-label="Recent GitHub activity">
+            {events.map((e) => (
+              <li class="tl-item reveal" data-type={e.kind}>
+                <span class="tl-time">{timeAgo(e.publishedAt)}</span>
+                <div class="tl-card">
+                  <span class="repo">{(e.extra?.repo as string) ?? "github"}</span>
+                  <h3><a href={e.url} target="_blank" rel="noopener noreferrer">{e.title}</a></h3>
+                  <div class="tl-meta">
+                    <span>{(e.kind ?? "").replace(/Event$/, "").toUpperCase()}</span>
+                    {e.detail && <span>{e.detail}</span>}
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <ol class="stream" id="commit-stream" aria-label="Recent GitHub activity">
+            <li class="tl-item">
+              <span class="tl-time">now</span>
+              <div class="tl-card">
+                <span class="repo">github.com/tracyapps</span>
+                <h3>Live feed unavailable right now</h3>
+                <p>
+                  {ghStatus?.status === "needs-config"
+                    ? "The GitHub feed needs its configuration finished in the admin console."
+                    : ghStatus?.lastError
+                      ? `Last refresh failed: ${ghStatus.lastError}`
+                      : "GitHub's API could not be reached yet — the hub retries automatically. Open the profile to see the real history."}
+                </p>
+                <div class="tl-meta">
+                  <a class="link-arrow" href="https://github.com/tracyapps" target="_blank" rel="noopener noreferrer">open @tracyapps on GitHub ↗</a>
+                </div>
+              </div>
+            </li>
+          </ol>
+        )}
+      </div>
+
+      <aside class="stack" aria-label="Activity context">
+        {mixRows.length > 0 && (
+          <div class="chart">
+            <div class="chart-title"><span>Event mix</span><span>live</span></div>
+            <div class="bars">
+              {mixRows.map((r) => (
+                <div class="bar-row">
+                  <span title={r.label}>{r.label}</span>
+                  <span class="track"><i style={`width:${r.pct}%`} /></span>
+                  <span class="val">{r.pct}%</span>
+                </div>
+              ))}
+            </div>
+            <p class="chart-note">Share of the most recent public events, by type.</p>
+          </div>
+        )}
+
+        <Donut title="Languages" note={ghMeta?.langs?.length ? "live · repos" : "sample · pinned"} rows={langs} />
+
+        <Heatmap items={events} title="Commit rhythm" note="Live grid — one cell per day of recent public events." />
+
+        {
+          ghMeta?.repos?.length ? (
+            <div class="tile">
+              <span class="kicker">most recently pushed</span>
+              <div class="stack-sm" style="margin-top:8px">
+                {ghMeta.repos.slice(0, 5).map((r) => (
+                  <div style="display:flex;justify-content:space-between;gap:12px;font-family:var(--font-mono);font-size:12px">
+                    <a class="link-arrow" href={r.url} target="_blank" rel="noopener noreferrer" style="font-size:12px">{r.name}</a>
+                    <span class="muted">★ {r.stars} · {timeAgo(r.pushed)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div class="tile">
+              <span class="kicker">the source</span>
+              <h3 class="tile-title">@tracyapps</h3>
+              <p>EXP [design], draw-tionary, start, burn-it-down, zaobank-core and more, all in the open.</p>
+              <a class="link-arrow" href="https://github.com/tracyapps" target="_blank" rel="noopener noreferrer">open the profile ↗</a>
+            </div>
+          )
+        }
+      </aside>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="grid grid--2">
+        <div class="stack">
+          <span class="eyebrow">build in public</span>
+          <h2 style="font-size:clamp(28px,4.5vw,46px)">Every project on this site has a paper trail.</h2>
+          <p class="lead">The status board is backed by the commit log. Follow either one and you'll know exactly where things stand.</p>
+        </div>
+        <div class="stack">
+          <a class="btn btn--primary" href="/projects">Back to the status board</a>
+          <a class="btn btn--ghost" href="https://github.com/tracyapps" target="_blank" rel="noopener noreferrer">Follow on GitHub</a>
+        </div>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+
+<script>
+  // client-side stream filtering — items carry data-type, chips toggle aria-pressed
+  document.addEventListener("click", (e) => {
+    const chip = (e.target as HTMLElement).closest<HTMLElement>("[data-filter]");
+    if (!chip) return;
+    const type = chip.dataset.filter || "all";
+    document.querySelectorAll<HTMLElement>("[data-filter]").forEach((c) =>
+      c.setAttribute("aria-pressed", String(c === chip))
+    );
+    const stream = document.getElementById("commit-stream");
+    if (!stream) return;
+    let shown = 0;
+    stream.querySelectorAll<HTMLElement>(".tl-item[data-type]").forEach((li) => {
+      const show = type === "all" || li.dataset.type === type;
+      li.hidden = !show;
+      if (show) shown++;
+    });
+    let empty = stream.querySelector<HTMLElement>(".tl-empty");
+    if (!shown) {
+      if (!empty) {
+        empty = document.createElement("li");
+        empty.className = "tl-item tl-empty";
+        empty.innerHTML =
+          '<div class="tl-card"><h3>No events of that type</h3><p>Nothing in the current batch matches this filter. Try All, or check back after the next push.</p></div>';
+        stream.appendChild(empty);
+      }
+      empty.hidden = false;
+    } else if (empty) {
+      empty.hidden = true;
+    }
+  });
+</script>

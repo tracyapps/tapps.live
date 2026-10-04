@@ -1,0 +1,52 @@
+---
+// last.fm — now playing (spinning disc) + recent tracks. Reads only from the
+// feed cache, so it renders nothing when the feed is off or unconfigured —
+// the page never waits on the API.
+import { getFeedItems, getFeedMeta } from "../feeds/runner";
+import { timeAgo } from "../lib/format";
+
+interface Props {
+  limit?: number;
+  title?: string;
+}
+const { limit = 6, title = "On the turntable" } = Astro.props;
+
+const tracks = getFeedItems("lastfm", limit);
+const meta = getFeedMeta<{ nowPlaying?: { name: string; artist: string } | null; user?: string }>("lastfm");
+const nowPlaying = tracks.find((t) => t.extra?.nowPlaying);
+const user = meta?.user;
+---
+{
+  tracks.length > 0 ? (
+    <div class="tile">
+      <div class="tile-head">
+        <span class="kicker">{title}</span>
+        {user && (
+          <a class="kicker" href={`https://last.fm/user/${user}`} target="_blank" rel="noopener noreferrer" style="color:var(--accent)">
+            @{user} ↗
+          </a>
+        )}
+      </div>
+      {nowPlaying && (
+        <p style="font-size:14px;color:var(--fg-2)">
+          <strong>{nowPlaying.extra?.artist}</strong> — {nowPlaying.extra?.name} · spinning now
+        </p>
+      )}
+      <ul class="track-list">
+        {tracks.map((t) => (
+          <li class={`track ${t.extra?.nowPlaying ? "track--now" : ""}`}>
+            <span class="disc" aria-hidden="true" />
+            <span class="t">
+              <b>{t.extra?.name}</b>
+              <span>{t.extra?.artist}</span>
+            </span>
+            <span class="when">{t.extra?.nowPlaying ? "live" : timeAgo(t.publishedAt)}</span>
+          </li>
+        ))}
+      </ul>
+      <p class="chart-note" style="margin:0">
+        {nowPlaying ? "vinyl spinning · " : ""}scrobbles via last.fm{meta ? ` · refreshed ${timeAgo(String(meta.refreshedAt ?? ""))}` : ""}
+      </p>
+    </div>
+  ) : null
+}

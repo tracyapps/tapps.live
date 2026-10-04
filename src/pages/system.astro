@@ -1,0 +1,177 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { TOKENS, checkedPairs } from "../lib/tokens";
+import { COLORWAYS } from "../lib/palette";
+
+const swatches = TOKENS;
+const pairs = checkedPairs();
+const allPass = pairs.every((p) => p.passes);
+
+const specimens = [
+  { tag: "display / Space Grotesk 700", style: "font-family:var(--font-display);font-weight:700;letter-spacing:-0.035em", size: "clamp(44px, 8vw, 96px)", text: "Built loud" },
+  { tag: "h2 / Space Grotesk 700", style: "font-family:var(--font-display);font-weight:700", size: "var(--text-2xl)", text: "Things currently being built" },
+  { tag: "lead / Inter 400", style: "font-family:var(--font-body)", size: "var(--text-lg)", text: "A lead paragraph sits at 19px and breathes at 1.55 line-height." },
+  { tag: "body / Inter 400", style: "font-family:var(--font-body)", size: "var(--text-base)", text: "Body copy at 16px — the default rhythm for everything explanatory." },
+  { tag: "kicker / Plex Mono 500", style: "font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.16em;color:var(--muted)", size: "11px", text: "kicker · always uppercase · always tracked" }
+];
+
+const scale = [
+  ["--text-xs", "12px"], ["--text-sm", "14px"], ["--text-base", "16px"],
+  ["--text-lg", "19px"], ["--text-xl", "26px"], ["--text-2xl", "42px"]
+];
+
+const duoPosters = [
+  { src: "/duo-samples/tapps-duotone-poster.png", name: "magenta / lime", note: "the house duotone" },
+  { src: "/duo-samples/tapps-halftone-poster.png", name: "halftone", note: "ordered dither, accent → sun" },
+  { src: "/duo-samples/tapps-glitch-poster.png", name: "glitch", note: "channel split + slice tears" },
+  { src: "/duo-samples/tapps-duo-ultra-mint.png", name: "ultra / mint", note: "ultraviolet + jelly mint" },
+  { src: "/duo-samples/tapps-duo-hot-sun.png", name: "hot / sun", note: "hazard pair" },
+  { src: "/duo-samples/tapps-duo-mint-magenta.png", name: "mint / magenta", note: "the flip side" }
+];
+---
+<BaseLayout title="Design system — tapps.live" description="The living design system behind tapps.live: color tokens with live WCAG contrast checks, type scale, the duotone ink press, and motion rules.">
+  <section class="hero section--flush">
+    <div class="hero-bg" aria-hidden="true"></div>
+    <div class="wrap hero-inner">
+      <span class="eyebrow">07 — the rulebook</span>
+      <h1 class="wordmark glitch" data-text="THE SYSTEM" style="font-size:clamp(44px,11vw,140px)">THE SYSTEM</h1>
+      <p class="hero-sub">One source of truth for every screen on this site. Tokens first, components second, inks third. If it isn't here, it doesn't ship.</p>
+      <p class="chart-note" style="margin-top:18px">
+        Palette adapted from The Verge token system · every value a CSS custom property in
+        <code style="font-family:var(--font-mono)">theme.css</code> · contrast pairs checked live below
+      </p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <div><span class="num">01</span><h2>Color</h2></div>
+        <span class="kicker">live values</span>
+      </div>
+      <div class="swatch-grid">
+        {swatches.map((t) => (
+          <div class="swatch">
+            <div class="chip" style={`background:${t.hex}`} />
+            <div class="meta">
+              <b>{t.hex.toUpperCase()}</b>
+              <span>{t.name}</span>
+              <span>{t.role}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+      <p class="chart-note">Accent discipline: --accent earns at most two loud moments per screen. Everything else leans on semantic tokens and tinted surfaces. No gradients as decoration.</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <div><span class="num">02</span><h2>Contrast — the rule, checked</h2></div>
+        <span class={`status ${allPass ? "status--ok" : "status--error"}`}>
+          <span class="pip" aria-hidden="true" />{allPass ? `all ${pairs.length} pairs pass AA` : "failures detected"}
+        </span>
+      </div>
+      <p class="lead" style="margin-bottom:24px">
+        Grey on green doesn't ship. Every text/background pair the site uses is listed with its live ratio —
+        the same math runs in the test suite, so a token change that breaks AA fails the build's tests.
+      </p>
+      <div class="chart">
+        <div class="chart-title"><span>pair</span><span>ratio · WCAG AA ≥ 4.5</span></div>
+        <div class="bars">
+          {pairs.map((p) => (
+            <div class="bar-row" title={`${p.fg} on ${p.bg}`}>
+              <span>{p.label}</span>
+              <span class="track"><i style={`width:${Math.min(100, (p.ratio / 14) * 100)}%;${p.passes ? "" : "background:var(--danger)"}`} /></span>
+              <span class="val" style={p.passes ? "" : "color:var(--danger)"}>{p.ratio.toFixed(2)} {p.passes ? "✓" : "✗"}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <div><span class="num">03</span><h2>Typography</h2></div>
+        <span class="kicker">Space Grotesk · Inter · IBM Plex Mono</span>
+      </div>
+      {specimens.map((s) => (
+        <div class="specimen">
+          <span class="tagline">{s.tag}</span>
+          <span style={`${s.style};font-size:${s.size};line-height:1.15;display:block`}>{s.text}</span>
+        </div>
+      ))}
+      <div class="grid grid--2" style="margin-top:32px">
+        <div class="tile">
+          <span class="kicker">display rule</span>
+          <h3 class="tile-title">Display is a shout, not a label</h3>
+          <p>Space Grotesk carries the enormous headlines and the wordmark. It never labels a button or sets body copy.</p>
+        </div>
+        <div class="tile">
+          <span class="kicker">mono rule</span>
+          <h3 class="tile-title">Mono is always uppercase</h3>
+          <p>IBM Plex Mono handles kickers, timestamps, tags and button labels — every one with 0.1–0.18em tracking.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <div><span class="num">04</span><h2>Space & radius</h2></div>
+        <span class="kicker">4px base unit</span>
+      </div>
+      {scale.map(([name, px]) => (
+        <div class="scale-row">
+          <code>{name} · {px}</code>
+          <div class="fs" style={`width:min(${parseInt(px) * 8}px, 100%);height:${Math.min(parseInt(px), 26)}px`} />
+        </div>
+      ))}
+      <div class="scale-row"><code>--radius-sm 4 · md 8 · lg 12 · pill</code><div class="rs" style="border-radius:12px" /></div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <div><span class="num">05</span><h2>The duotone ink press</h2></div>
+        <span class="kicker">{COLORWAYS.length} colorways · live on every image</span>
+      </div>
+      <p class="lead" style="margin-bottom:28px">
+        The export baked these with ImageMagick; the live site presses them with SVG filters — same two-ink math,
+        applied to any image at runtime. Screenshots, artwork, video thumbnails: everything foreign adopts the house style.
+        Hover any image and hit <span class="tag" style="text-transform:none">↻</span> to reroll its inks.
+      </p>
+      <div class="poster-grid">
+        {duoPosters.map((p) => (
+          <figure class="poster">
+            <img src={p.src} alt={`tapps portrait poster — ${p.name}`} loading="lazy" />
+            <figcaption>
+              <h3 class="poster-name">{p.name}</h3>
+              <p class="kicker">{p.note}</p>
+            </figcaption>
+          </figure>
+        ))}
+      </div>
+      <div class="grid grid--2" style="margin-top:32px">
+        <div class="tile">
+          <span class="kicker">ink pairs</span>
+          <div class="poster-inks" style="margin-top:12px">
+            {COLORWAYS.map((c) => (
+              <span class="ink"><i style={`background:linear-gradient(90deg, ${c.shadow} 50%, ${c.highlight} 50%)`} />{c.id}</span>
+            ))}
+          </div>
+        </div>
+        <div class="tile">
+          <span class="kicker">motion rules</span>
+          <h3 class="tile-title">Fast, purposeful, respectful</h3>
+          <p>120–200ms transitions on controls · 620ms reveals · glitch loops on hero only. Everything collapses to still under prefers-reduced-motion — no exceptions.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

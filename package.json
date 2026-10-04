@@ -1,0 +1,27 @@
+{
+  "name": "tapps-live",
+  "version": "1.0.0",
+  "description": "tapps.live — the live hub: projects, activity, streams, art, links",
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "feeds:refresh": "tsx scripts/run-feeds.ts refresh",
+    "feeds:test": "tsx scripts/run-feeds.ts test"
+  },
+  "dependencies": {
+    "@astrojs/node": "^9.2.2",
+    "astro": "^5.12.0",
+    "better-sqlite3": "^12.2.0",
+    "fast-xml-parser": "^5.2.5"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^24.0.0",
+    "tsx": "^4.20.3",
+    "vitest": "^3.2.4"
+  }
+}

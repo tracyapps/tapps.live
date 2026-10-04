@@ -1,0 +1,23 @@
+---
+import type { LinkItem } from "../lib/db";
+
+interface Props {
+  link: LinkItem;
+  delay?: number;
+}
+const { link: s, delay = 0 } = Astro.props;
+const fill = s.fill || "";
+---
+<a
+  class={`social-tile ${fill} reveal`}
+  href={s.url}
+  target="_blank"
+  rel="noopener noreferrer"
+  style={`--reveal-delay:${delay}ms`}
+>
+  <span>
+    <span class="name">{s.name}</span><br />
+    <span class="handle">{s.handle}</span>
+  </span>
+  <span class="arrow" aria-hidden="true">&#8599;</span>
+</a>

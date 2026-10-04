@@ -1,0 +1,62 @@
+---
+// Server-rendered editable block rows for the page builder. The client
+// script in admin/content.astro appends new rows with the same field names.
+interface Block {
+  type: string;
+  [key: string]: unknown;
+}
+
+interface Props {
+  blocks: Block[];
+}
+
+const { blocks = [] } = Astro.props;
+const textareasByType: Record<string, string[]> = {
+  text: ["text"],
+  links: ["items"],
+  ticker: ["parts"]
+};
+const labels: Record<string, Record<string, string>> = {
+  heading: { text: "Heading text" },
+  text: { text: "Paragraph text" },
+  image: { src: "Image URL (or /media/ID)", alt: "Alt text", ratio: "Aspect ratio (16 / 9)" },
+  cta: { eyebrow: "Eyebrow", title: "Title", body: "Body", url: "URL", label: "Button label" },
+  links: { items: "One per line: label | url | note" },
+  ticker: { parts: "One per line: name | note" }
+};
+---
+<div data-blocks style="display:grid;gap:10px">
+  {blocks.map((b, i) => {
+    const fields = labels[b.type] ?? {};
+    const taKeys = textareasByType[b.type] ?? [];
+    return (
+      <div class="form-block" style="border:1px dashed var(--border);border-radius:8px;padding:12px;display:grid;gap:8px">
+        <span class="kicker">block {i + 1} · {b.type}</span>
+        {Object.entries(fields).map(([key, label]) => {
+          const name = `b${i}_${key}`;
+          const value = key === "items" || key === "parts"
+            ? Array.isArray(b[key]) ? (b[key] as { label?: string; url?: string; note?: string; name?: string }[]).map((x) => [x.label ?? x.name, x.url ?? "", x.note ?? ""].filter(Boolean).join(" | ")).join("\n") : ""
+            : String(b[key] ?? "");
+          return taKeys.includes(key) ? (
+            <div class="field">
+              <label for={name}>{label}</label>
+              <textarea id={name} name={name} rows={2}>{value}</textarea>
+            </div>
+          ) : (
+            <div class="field">
+              <label for={name}>{label}</label>
+              <input id={name} name={name} value={value} />
+            </div>
+          );
+        })}
+      </div>
+    );
+  })}
+</div>
+<input type="hidden" name="block_types" value={blocks.map((b) => b.type).join(",")} />
+<div class="form-row" style="margin-top:4px">
+  <span class="kicker">add block:</span>
+  {["heading", "text", "image", "links", "cta", "ticker"].map((t) => (
+    <button class="btn btn--solid btn--sm btn--mono" type="button" data-add-block={t}>+ {t}</button>
+  ))}
+</div>

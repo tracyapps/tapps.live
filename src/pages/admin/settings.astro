@@ -1,0 +1,70 @@
+---
+import AdminLayout from "../../layouts/AdminLayout.astro";
+import { csrfToken } from "../../lib/auth";
+import { getKv } from "../../lib/db";
+import { checkedPairs } from "../../lib/tokens";
+import { adminPassword } from "../../lib/auth";
+
+const csrf = csrfToken();
+const back = "/admin/settings";
+const profile = getKv<Record<string, string>>("profile", {});
+const pairs = checkedPairs();
+const failing = pairs.filter((p) => !p.passes);
+const usingDefaultPassword = adminPassword() === "tapps";
+---
+<AdminLayout title="Settings" sub="Profile info used across every page, plus the state of the a11y contract.">
+  <form class="form-body" method="post" action="/admin/api/action" style="display:grid;gap:16px;border:1px solid var(--border);border-radius:var(--radius-lg);background:var(--surface);padding:20px;margin-bottom:36px">
+    <input type="hidden" name="op" value="save-profile" />
+    <input type="hidden" name="csrf" value={csrf} />
+    <input type="hidden" name="back" value={back} />
+    <h2 style="font-size:var(--text-lg)">profile</h2>
+    <div class="form-grid">
+      <div class="field"><label for="p-name">name</label><input id="p-name" name="name" value={profile.name ?? ""} /></div>
+      <div class="field"><label for="p-handle">handle</label><input id="p-handle" name="handle" value={profile.handle ?? ""} /></div>
+      <div class="field"><label for="p-role">role</label><input id="p-role" name="role" value={profile.role ?? ""} /></div>
+      <div class="field"><label for="p-location">location</label><input id="p-location" name="location" value={profile.location ?? ""} /></div>
+      <div class="field"><label for="p-email">email</label><input id="p-email" name="email" value={profile.email ?? ""} /></div>
+      <div class="field"><label for="p-phone">phone</label><input id="p-phone" name="phone" value={profile.phone ?? ""} /></div>
+      <div class="field"><label for="p-cal">calendly url</label><input id="p-cal" name="calendly" value={profile.calendly ?? ""} /></div>
+      <div class="field"><label for="p-sticker">hero sticker</label><input id="p-sticker" name="sticker" value={profile.sticker ?? ""} /></div>
+    </div>
+    <div class="field"><label for="p-eyebrow">hero eyebrow</label><input id="p-eyebrow" name="eyebrow" value={profile.eyebrow ?? ""} /></div>
+    <div class="field"><label for="p-blurb">hero blurb</label><textarea id="p-blurb" name="blurb" rows="3">{profile.blurb ?? ""}</textarea></div>
+    <div class="field"><label for="p-short">footer short blurb</label><textarea id="p-short" name="shortBlurb" rows="2">{profile.shortBlurb ?? ""}</textarea></div>
+    <div><button class="btn btn--primary btn--sm btn--mono" type="submit">save profile</button></div>
+  </form>
+
+  <div class="feed-card" style="margin-bottom:36px">
+    <div class="fc-head">
+      <span class="fc-title">A11y contract</span>
+      <span class={`status ${failing.length ? "status--error" : "status--ok"}`}>
+        <span class="pip" aria-hidden="true" />{failing.length ? `${failing.length} failing` : `all ${pairs.length} pairs pass AA`}
+      </span>
+    </div>
+    <p class="fc-desc">
+      The same WCAG math that runs in the test suite (npm test), checked live against the token table.
+      Grey-on-green and white-on-magenta can't ship — the fill inks are verified here.
+    </p>
+    <div class="fc-meta">
+      {pairs.map((p) => (
+        <span style={p.passes ? "" : "color:var(--danger)"}>
+          {p.passes ? "✓" : "✗"} {p.label} — {p.ratio.toFixed(2)}:1
+        </span>
+      ))}
+    </div>
+  </div>
+
+  {
+    usingDefaultPassword && (
+      <div class="feed-card" style="border-color:rgba(239,68,68,.5)">
+        <div class="fc-head">
+          <span class="fc-title">Default admin password in use</span>
+          <span class="status status--error"><span class="pip" aria-hidden="true" />fix me</span>
+        </div>
+        <p class="fc-desc">
+          Set ADMIN_PASSWORD (and SESSION_SECRET) in .env before this goes anywhere public. See .env.example.
+        </p>
+      </div>
+    )
+  }
+</AdminLayout>

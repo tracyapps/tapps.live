@@ -1,0 +1,92 @@
+---
+// Custom pages created in the admin CMS render here. Blocks are a small,
+// opinionated set: heading, text, image, links, ticker, cta, duo gallery.
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { getDB } from "../lib/db";
+import Ticker from "../components/Ticker.astro";
+import DuoImage from "../components/DuoImage.astro";
+import { esc } from "../lib/format";
+
+interface Block {
+  type: string;
+  [key: string]: unknown;
+}
+
+const slug = Astro.url.pathname.replace(/^\//, "").replace(/\/$/, "");
+const row = getDB()
+  .prepare("SELECT * FROM pages WHERE slug = ? AND published = 1")
+  .get(slug) as { title: string; kicker: string; intro: string; blocks: string } | undefined;
+
+if (!row) {
+  Astro.response.status = 404;
+  return Astro.rewrite("/404");
+}
+
+let blocks: Block[] = [];
+try {
+  blocks = JSON.parse(row.blocks);
+} catch {
+  blocks = [];
+}
+
+const tickerBlocks = blocks.filter((b) => b.type === "ticker");
+---
+<BaseLayout title={`${row.title} — tapps.live`} description={row.intro.slice(0, 160)}>
+  <section class="hero section--flush">
+    <div class="hero-bg" aria-hidden="true"></div>
+    <div class="wrap hero-inner">
+      {row.kicker && <span class="eyebrow">{row.kicker}</span>}
+      <h1 class="wordmark glitch" data-text={row.title.toUpperCase()} style="font-size:clamp(40px,9vw,120px)">{row.title}</h1>
+      {row.intro && <p class="hero-sub">{row.intro}</p>}
+    </div>
+  </section>
+
+  {tickerBlocks.map((b) => (
+    <Ticker parts={((b.parts as { name: string; note: string }[]) || []).map((p) => ({ name: esc(p.name), note: esc(p.note) }))} />
+  ))}
+
+  <section class="section">
+    <div class="wrap stack-lg">
+      {blocks.map((b) => {
+        if (b.type === "heading") {
+          return <h2 style="font-size:clamp(26px,4vw,40px)">{esc(String(b.text || ""))}</h2>;
+        }
+        if (b.type === "text") {
+          return <p class="lead" style="white-space:pre-line">{esc(String(b.text || ""))}</p>;
+        }
+        if (b.type === "image" && b.src) {
+          return <DuoImage src={String(b.src)} alt={String(b.alt || "")} seed={String(b.src)} ratio={String(b.ratio || "16 / 9")} />;
+        }
+        if (b.type === "links") {
+          const links = (b.items as { label: string; url: string; note?: string }[]) || [];
+          return (
+            <div class="grid grid--3">
+              {links.map((l) => (
+                <a class="tile" href={l.url} target="_blank" rel="noopener noreferrer">
+                  <h3 class="tile-title">{esc(l.label)}</h3>
+                  {l.note && <p>{esc(l.note)}</p>}
+                  <span class="link-arrow" style="margin-top:auto">visit ↗</span>
+                </a>
+              ))}
+            </div>
+          );
+        }
+        if (b.type === "cta") {
+          return (
+            <div class="grid grid--2">
+              <div class="stack">
+                <span class="eyebrow">{esc(String(b.eyebrow || "go on"))}</span>
+                <h2 style="font-size:clamp(26px,4vw,40px)">{esc(String(b.title || ""))}</h2>
+                {b.body && <p class="lead">{esc(String(b.body))}</p>}
+              </div>
+              <div class="stack">
+                <a class="btn btn--primary" href={String(b.url || "/")}>{esc(String(b.label || "go"))}</a>
+              </div>
+            </div>
+          );
+        }
+        return null;
+      })}
+    </div>
+  </section>
+</BaseLayout>

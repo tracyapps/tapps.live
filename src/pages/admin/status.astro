@@ -1,0 +1,163 @@
+---
+import AdminLayout from "../../layouts/AdminLayout.astro";
+import { csrfToken } from "../../lib/auth";
+import { getFeedStatuses } from "../../feeds/runner";
+import { getDB } from "../../lib/db";
+import { timeAgo } from "../../lib/format";
+
+const csrf = csrfToken();
+const back = "/admin/status";
+const statuses = getFeedStatuses().filter((s) => !s.linkOnly);
+const events = getDB()
+  .prepare("SELECT feed_id, level, message, created_at FROM feed_events ORDER BY id DESC LIMIT 40")
+  .all() as { feed_id: string; level: string; message: string; created_at: string }[];
+const ok = statuses.filter((s) => s.status === "ok").length;
+const failing = statuses.filter((s) => s.status === "error");
+---
+<AdminLayout
+  title="Status"
+  sub="The connection console: live tests, last-refresh times, error details, and the fix path for every feed. Auto-refreshes every 20s while open."
+>
+  <div slot="actions" class="form-row">
+    <button class="btn btn--primary btn--sm btn--mono" type="button" data-status-action="test-all">run all tests</button>
+    <button class="btn btn--ghost btn--sm btn--mono" type="button" data-status-action="refresh-all">refresh all now</button>
+    <span class="kicker" data-status-updated>loading…</span>
+  </div>
+
+  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-bottom:28px">
+    <div class="stat-mini"><div class="n">{ok}/{statuses.length}</div><div class="l">feeds healthy</div></div>
+    <div class="stat-mini"><div class="n" style={failing.length ? "color:var(--danger)" : ""}>{failing.length}</div><div class="l">failing</div></div>
+    <div class="stat-mini"><div class="n">{statuses.filter((s) => s.status === "needs-config").length}</div><div class="l">need config</div></div>
+    <div class="stat-mini"><div class="n">{statuses.filter((s) => !s.enabled).length}</div><div class="l">switched off</div></div>
+  </div>
+
+  <div class="status-grid" style="margin-bottom:36px" data-status-grid>
+    {statuses.map((s) => (
+      <div class="feed-card" data-feed-card={s.id}>
+        <div class="fc-head">
+          <span class="fc-icon" aria-hidden="true">{s.icon}</span>
+          <span class="fc-title">{s.label}</span>
+          <span class={`status status--${s.status}`} data-feed-status><span class="pip" aria-hidden="true" />{s.status}</span>
+        </div>
+        <div class="fc-meta" data-feed-meta>
+          <span>last refresh: {s.lastRefreshAt ? timeAgo(s.lastRefreshAt.replace(" ", "T") + "Z") : "never"}</span>
+          <span>items cached: {s.lastItemCount ?? 0}{s.lastDurationMs != null ? ` · ${s.lastDurationMs}ms` : ""}</span>
+          {s.lastTest && <span class={s.lastTest.ok ? "fc-test-ok" : ""} data-feed-test>test: {s.lastTest.message}</span>}
+        </div>
+        {s.lastError && s.status === "error" && <p class="fc-error" data-feed-error>{s.lastError}</p>}
+        <div class="form-row">
+          <button class="btn btn--solid btn--sm btn--mono" type="button" data-status-action="test-feed" data-feed={s.id}>test</button>
+          <button class="btn btn--solid btn--sm btn--mono" type="button" data-status-action="refresh-feed" data-feed={s.id}>refresh now</button>
+          <a class="btn btn--ghost btn--sm btn--mono" href="/admin/feeds">configure →</a>
+        </div>
+        <p class="chart-note" style="margin:0" data-feed-result role="status" aria-live="polite"></p>
+      </div>
+    ))}
+  </div>
+
+  <h2 style="font-size:var(--text-lg);margin-bottom:14px">event log</h2>
+  <div class="table-wrap">
+    <table class="admin-table event-log" data-event-log>
+      <thead><tr><th>when</th><th>feed</th><th>level</th><th>message</th></tr></thead>
+      <tbody>
+        {events.length === 0 && <tr><td colspan="4" class="muted">Nothing logged yet — the first refresh writes here.</td></tr>}
+        {events.map((e) => (
+          <tr>
+            <td class="muted">{e.created_at.replace("T", " ").slice(0, 19)} UTC</td>
+            <td>{e.feed_id}</td>
+            <td class={`lv-${e.level}`}>{e.level}</td>
+            <td>{e.message}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+</AdminLayout>
+
+<script define:vars={{ csrf }}>
+  const api = "/admin/api/action";
+  const post = async (op, extra = {}) => {
+    const res = await fetch(api, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ op, csrf, ...extra })
+    });
+    return res.json().catch(() => ({ ok: false, message: "no response" }));
+  };
+  const setResult = (id, text, ok) => {
+    const el = document.querySelector(`[data-feed-card="${id}"] [data-feed-result]`);
+    if (el) {
+      el.textContent = text;
+      el.style.color = ok ? "var(--success)" : "var(--danger)";
+    }
+  };
+
+  document.addEventListener("click", async (e) => {
+    const btn = (e.target).closest("[data-status-action]");
+    if (!btn) return;
+    const action = btn.dataset.statusAction;
+    btn.disabled = true;
+    try {
+      if (action === "test-feed" || action === "refresh-feed") {
+        const id = btn.dataset.feed;
+        setResult(id, "working…", true);
+        const r = await post(action === "test-feed" ? "test-feed" : "refresh-feed", { id });
+        setResult(id, r.message || "done", r.ok !== false);
+        if (action === "refresh-feed") setTimeout(() => location.reload(), 700);
+      } else if (action === "test-all") {
+        btn.textContent = "testing…";
+        const r = await post("test-all");
+        btn.textContent = r.message || "done";
+        setTimeout(() => location.reload(), 800);
+      } else if (action === "refresh-all") {
+        btn.textContent = "refreshing…";
+        const r = await post("refresh-all");
+        btn.textContent = r.message || "done";
+        setTimeout(() => location.reload(), 800);
+      }
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  // live status poll while the console is open
+  const updated = document.querySelector("[data-status-updated]");
+  async function poll() {
+    try {
+      const res = await fetch("/admin/api/status", { cache: "no-store" });
+      if (!res.ok) return;
+      const data = await res.json();
+      for (const s of data.statuses || []) {
+        const card = document.querySelector(`[data-feed-card="${s.id}"]`);
+        if (!card) continue;
+        const pill = card.querySelector("[data-feed-status]");
+        if (pill) {
+          pill.className = `status status--${s.status}`;
+          pill.innerHTML = `<span class="pip" aria-hidden="true"></span>${s.status}`;
+        }
+        const errEl = card.querySelector("[data-feed-error]");
+        if (errEl) {
+          if (s.status === "error" && s.lastError) errEl.textContent = `last error: ${s.lastError}`;
+          else errEl.remove();
+        }
+        const testEl = card.querySelector("[data-feed-test]");
+        if (testEl && s.lastTest) {
+          testEl.textContent = `test: ${s.lastTest.message}`;
+          testEl.className = s.lastTest.ok ? "fc-test-ok" : "";
+        }
+      }
+      const logBody = document.querySelector("[data-event-log] tbody");
+      if (logBody && Array.isArray(data.events) && data.events.length) {
+        logBody.innerHTML = data.events
+          .map(
+            (ev) =>
+              `<tr><td class="muted">${String(ev.created_at).replace("T", " ").slice(0, 19)} UTC</td><td>${ev.feed_id}</td><td class="lv-${ev.level}">${ev.level}</td><td>${ev.message}</td></tr>`
+          )
+          .join("");
+      }
+      if (updated) updated.textContent = `live · updated ${new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`;
+    } catch {}
+  }
+  setInterval(poll, 20_000);
+  poll();
+</script>

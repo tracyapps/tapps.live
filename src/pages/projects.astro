@@ -1,0 +1,161 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import ProjectTile from "../components/ProjectTile.astro";
+import BarChart from "../components/BarChart.astro";
+import Donut from "../components/Donut.astro";
+import Heatmap from "../components/Heatmap.astro";
+import StatusPill from "../components/StatusPill.astro";
+import { getProjects, getKv } from "../lib/db";
+import { getFeedItems, getFeedMeta } from "../feeds/runner";
+import { timeAgo } from "../lib/format";
+
+const projects = getProjects();
+const withProgress = projects.filter((p) => p.progress != null);
+const avg = withProgress.length
+  ? Math.round(withProgress.reduce((a, p) => a + (p.progress ?? 0), 0) / withProgress.length)
+  : 0;
+const live = withProgress.length;
+const shipped = projects.filter((p) => p.status === "live").length;
+const unaired = projects.filter((p) => p.progress == null).length;
+
+const SAMPLE_LANGS = [
+  { label: "Swift", pct: 30 },
+  { label: "TypeScript", pct: 24 },
+  { label: "PHP", pct: 18 },
+  { label: "CSS", pct: 14 },
+  { label: "Astro", pct: 9 },
+  { label: "Other", pct: 5 }
+];
+const ghMeta = getFeedMeta<{ langs?: { label: string; pct: number }[]; roadmapSync?: Record<string, { ok: boolean; at?: string }> }>("github");
+const langs = ghMeta?.langs?.length ? ghMeta.langs : SAMPLE_LANGS;
+const langsNote = ghMeta?.langs?.length ? "live · github repos" : "sample · pinned";
+
+const events = getFeedItems("github", 60);
+const progressRows = [...withProgress]
+  .sort((a, b) => (b.progress ?? 0) - (a.progress ?? 0))
+  .map((p) => ({ label: p.name, pct: p.progress ?? 0 }));
+
+const synamp = projects.find((p) => p.slug === "synamp") ?? projects.find((p) => p.progress == null);
+---
+<BaseLayout title="Projects & status — tapps.live" description="Live status board: papr.world, EXP [design], WebProduction Studio, *doku, e-f.online, Draw-tionary, synamp.app, and plugins.">
+  <section class="hero section--flush">
+    <div class="hero-bg" aria-hidden="true"></div>
+    <div class="wrap hero-inner">
+      <span class="eyebrow">02 — status board</span>
+      <h1 class="wordmark glitch" data-text="THE BUILD LOG" style="font-size:clamp(40px,9vw,120px)">THE BUILD LOG</h1>
+      <p class="hero-sub">{projects.length} efforts, one honest board. Every bar below is pulled from the project's own public notes — no inflated percentages, no fake metrics. If a roadmap isn't public, the card says so.</p>
+      <div class="hero-stats">
+        <div class="stat"><div class="n" data-count={live}>0</div><div class="l">active builds</div></div>
+        <div class="stat"><div class="n" data-count={shipped}>0</div><div class="l">live & shipped</div></div>
+        <div class="stat"><div class="n" data-count={avg} data-suffix="%">0</div><div class="l">avg. build progress</div></div>
+        <div class="stat"><div class="n" data-count={unaired}>0</div><div class="l">roadmap on purpose unaired</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <span class="num">the roster</span>
+          <h2>Everything on the bench</h2>
+        </div>
+        <a class="link-arrow" href="/activity">see the commits behind it →</a>
+      </div>
+      <div class="grid grid--3">
+        {projects.map((p, i) => <ProjectTile project={p} delay={(i % 3) * 70} />)}
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <span class="num">the numbers</span>
+          <h2>Progress at a glance</h2>
+        </div>
+      </div>
+      <div class="grid grid--2">
+        <BarChart title="Build progress by project" note="% complete" rows={progressRows} />
+        <Donut title="Languages across public repos" note={langsNote} rows={langs} caption="Illustrative split from pinned repositories until the GitHub feed connects — then it's live." />
+      </div>
+      <div style="margin-top:24px">
+        <Heatmap items={events} />
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <span class="num">the receipts</span>
+          <h2>Roadmaps, opened up</h2>
+        </div>
+        <span class="kicker">tap to expand</span>
+      </div>
+      <div class="stack-sm">
+        {projects.map((p) => (
+          <details class="tl-card reveal" style="padding:20px 24px">
+            <summary style="cursor:pointer;list-style:none;display:flex;align-items:center;gap:14px;flex-wrap:wrap;min-height:44px">
+              <StatusPill status={p.status} label={p.status_label || p.status} />
+              <span style="font-family:var(--font-display);font-weight:700;font-size:var(--text-lg);letter-spacing:-0.02em">{p.name}</span>
+              <span class="kicker" style="margin-left:auto">
+                {p.progress == null ? "roadmap coming" : `${p.progress}% built`}
+              </span>
+            </summary>
+            {p.roadmap.length > 0 ? (
+              <div class="stack-sm" style="margin-top:16px">
+                {p.roadmap.map((r) => (
+                  <div class="progress-row">
+                    <div class="top">
+                      <span>{r.label}</span>
+                      <b>{r.pct}%</b>
+                    </div>
+                    <div class="bar">
+                      <span class={`bar-fill ${r.pct >= 100 ? "bar-fill--good" : ""}`} style={`width:${Math.max(r.pct, 2)}%`} />
+                    </div>
+                  </div>
+                ))}
+                {p.repo && (
+                  <p class="chart-note" style="margin-top:10px">
+                    synced from {p.repo}/{p.roadmap_path} · <a class="link-arrow" href={`https://github.com/${p.repo}/blob/HEAD/${p.roadmap_path}`} target="_blank" rel="noopener noreferrer">source ↗</a>
+                  </p>
+                )}
+              </div>
+            ) : (
+              <p class="muted" style="margin-top:12px;font-size:14px">
+                No public roadmap online yet. That is a choice, not an oversight — it goes live when the thing can explain itself.
+              </p>
+            )}
+          </details>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="grid grid--2">
+        {synamp && (
+          <article class="tile tile--fill fill-hot noise">
+            <span class="kicker">special case</span>
+            <h3 class="tile-title">{synamp.name} has no public roadmap yet</h3>
+            <p style="font-size:15px">And that's the whole status. It exists, it's being poked at, and it will get a real page when there's something worth showing. Until then, no invented timelines.</p>
+            <div class="tile-meta"><span class="tag">in the lab</span></div>
+          </article>
+        )}
+        <div class="stack">
+          <span class="eyebrow">want the source, not the summary?</span>
+          <h2 style="font-size:clamp(26px,4vw,40px)">The commit log doesn't lie.</h2>
+          <p class="lead">Follow along on GitHub or watch the activity stream refresh right here — last event {timeAgo(events[0]?.publishedAt)}.</p>
+          <div class="hero-actions">
+            <a class="btn btn--primary" href="/activity">Open the activity stream</a>
+            <a class="btn btn--ghost" href="https://github.com/tracyapps" target="_blank" rel="noopener noreferrer">github.com/tracyapps</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

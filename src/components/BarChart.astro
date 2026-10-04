@@ -1,0 +1,25 @@
+---
+interface Row {
+  label: string;
+  pct: number;
+}
+interface Props {
+  title: string;
+  note?: string;
+  rows: Row[];
+  class?: string;
+}
+const { title, note, rows, class: cls } = Astro.props;
+---
+<div class={`chart ${cls ?? ""}`}>
+  <div class="chart-title"><span>{title}</span>{note && <span>{note}</span>}</div>
+  <div class="bars">
+    {rows.map((d) => (
+      <div class="bar-row">
+        <span title={d.label}>{d.label}</span>
+        <span class="track"><i style={`width:${d.pct}%`} /></span>
+        <span class="val">{d.pct}%</span>
+      </div>
+    ))}
+  </div>
+</div>

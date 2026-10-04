@@ -1,0 +1,73 @@
+---
+import "../styles/theme.css";
+import "../styles/admin.css";
+import { csrfToken } from "../lib/auth";
+
+interface Props {
+  title: string;
+  sub?: string;
+}
+const { title, sub } = Astro.props;
+
+const tabs = [
+  { href: "/admin", label: "dashboard" },
+  { href: "/admin/content", label: "content" },
+  { href: "/admin/projects", label: "projects" },
+  { href: "/admin/links", label: "links" },
+  { href: "/admin/nav", label: "nav" },
+  { href: "/admin/feeds", label: "feeds" },
+  { href: "/admin/status", label: "status" },
+  { href: "/admin/settings", label: "settings" }
+];
+const path = Astro.url.pathname;
+const flash = Astro.url.searchParams.get("flash");
+const csrf = csrfToken();
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#050505" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="robots" content="noindex" />
+    <title>{title} — admin · tapps.live</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to admin</a>
+    <div class="admin-shell">
+      <aside class="admin-side">
+        <a class="brand" href="/admin" style="padding:0 12px 10px"><span class="dot" aria-hidden="true"></span>tapps<span style="color:var(--accent)">/admin</span></a>
+        <span class="side-label">console</span>
+        {tabs.map((t) => (
+          <a href={t.href} aria-current={path === t.href ? "page" : undefined}>
+            {t.label}
+          </a>
+        ))}
+        <span class="side-label">view site</span>
+        <a href="/" target="_blank" rel="noopener">open tapps.live ↗</a>
+        <div class="side-foot">
+          <form method="post" action="/admin/api/logout">
+            <input type="hidden" name="csrf" value={csrf} />
+            <button class="btn btn--ghost btn--sm btn--mono" type="submit">log out</button>
+          </form>
+        </div>
+      </aside>
+      <main class="admin-main" id="main">
+        <div class="admin-head">
+          <div>
+            <h1>{title}</h1>
+            {sub && <p class="sub">{sub}</p>}
+          </div>
+          <slot name="actions" />
+        </div>
+        {flash && <div class="flash" role="status">{flash}</div>}
+        <slot />
+      </main>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,68 @@
+---
+import AdminLayout from "../../layouts/AdminLayout.astro";
+import { getProjects, getAllLinks, getNav, getDB } from "../../lib/db";
+import { getFeedStatuses } from "../../feeds/runner";
+import { timeAgo } from "../../lib/format";
+
+const projects = getProjects();
+const links = getAllLinks();
+const nav = getNav(false);
+const pages = getDB().prepare("SELECT id, slug, title, published FROM pages ORDER BY sort, id").all() as {
+  id: number; slug: string; title: string; published: number;
+}[];
+const statuses = getFeedStatuses().filter((s) => !s.linkOnly);
+const ok = statuses.filter((s) => s.status === "ok").length;
+const needsAttention = statuses.filter((s) => s.status === "error" || s.status === "needs-config");
+const mediaCount = (getDB().prepare("SELECT COUNT(*) AS n FROM media").get() as { n: number }).n;
+---
+<AdminLayout title="Dashboard" sub="The hub at a glance: content counts, feed health, and what needs attention.">
+  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-bottom:32px">
+    <div class="stat-mini"><div class="n">{projects.length}</div><div class="l">projects</div></div>
+    <div class="stat-mini"><div class="n">{links.length}</div><div class="l">links</div></div>
+    <div class="stat-mini"><div class="n">{pages.length}</div><div class="l">custom pages</div></div>
+    <div class="stat-mini"><div class="n">{nav.length}</div><div class="l">nav items</div></div>
+    <div class="stat-mini"><div class="n">{ok}/{statuses.length}</div><div class="l">feeds ok</div></div>
+    <div class="stat-mini"><div class="n">{mediaCount}</div><div class="l">media files</div></div>
+  </div>
+
+  {
+    needsAttention.length > 0 && (
+      <div class="feed-card" style="margin-bottom:32px;border-color:rgba(250,204,21,.4)">
+        <div class="fc-head">
+          <span class="fc-title">Needs attention</span>
+          <a class="btn btn--solid btn--sm btn--mono" href="/admin/feeds">fix it →</a>
+        </div>
+        <ul style="margin:0;padding-left:20px;font-size:14px;color:var(--fg-2);display:grid;gap:6px">
+          {needsAttention.map((s) => (
+            <li>
+              <b>{s.label}</b> — {s.status === "needs-config" ? `add ${s.missingKeys.join(", ")}` : s.lastError}
+            </li>
+          ))}
+        </ul>
+      </div>
+    )
+  }
+
+  <div class="table-wrap">
+    <table class="admin-table">
+      <thead>
+        <tr><th>feed</th><th>status</th><th>last refresh</th><th>items</th><th>actions</th></tr>
+      </thead>
+      <tbody>
+        {statuses.map((s) => (
+          <tr>
+            <td><b>{s.label}</b></td>
+            <td>
+              <span class={`status status--${s.status}`}><span class="pip" aria-hidden="true" />{s.status}</span>
+            </td>
+            <td>{s.lastRefreshAt ? timeAgo(s.lastRefreshAt.replace(" ", "T") + "Z") : "never"}</td>
+            <td>{s.lastItemCount ?? "—"}</td>
+            <td class="actions">
+              <a class="btn btn--solid btn--sm btn--mono" href="/admin/status">console</a>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+</AdminLayout>

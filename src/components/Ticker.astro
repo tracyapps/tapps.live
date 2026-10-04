@@ -1,0 +1,13 @@
+---
+interface Part { name: string; note: string }
+interface Props { parts: Part[] }
+const { parts } = Astro.props;
+const doubled = [...parts, ...parts]; // seamless -50% loop
+---
+<div class="ticker" aria-hidden="true">
+  <div class="ticker-track">
+    {doubled.map((p) => (
+      <span>{p.name} <b>· {p.note}</b></span>
+    ))}
+  </div>
+</div>

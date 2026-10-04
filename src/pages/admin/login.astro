@@ -1,0 +1,37 @@
+---
+import "../../styles/theme.css";
+import "../../styles/admin.css";
+
+const error = Astro.url.searchParams.get("error");
+const next = Astro.url.searchParams.get("next") || "/admin";
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Log in — admin · tapps.live</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <div class="login-wrap">
+      <form class="login-card" method="post" action="/admin/api/login">
+        <div>
+          <a class="brand" href="/"><span class="dot" aria-hidden="true"></span>tapps<span style="color:var(--accent)">/admin</span></a>
+        </div>
+        <div class="field">
+          <label for="password">Admin password</label>
+          <input id="password" name="password" type="password" autocomplete="current-password" required autofocus placeholder="the secret handshake" />
+        </div>
+        <input type="hidden" name="next" value={next} />
+        {error && <p class="form-status" style="color:var(--danger)" role="alert">{error === "1" ? "Nope — try again." : error}</p>}
+        <button class="btn btn--primary" type="submit">Enter the console</button>
+        <p class="chart-note" style="margin:0">Set via ADMIN_PASSWORD in .env · sessions last 12h</p>
+      </form>
+    </div>
+  </body>
+</html>

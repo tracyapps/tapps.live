@@ -1,0 +1,135 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import SocialTile from "../components/SocialTile.astro";
+import DuoImage from "../components/DuoImage.astro";
+import { getLinks, getKv } from "../lib/db";
+
+const profile = getKv("profile", { email: "tracyapps@gmail.com", phone: "" });
+const pageLinks = getKv("page:links", { heroNote: "" });
+
+const socials = getLinks("social");
+const portfolios = getLinks("portfolio");
+---
+<BaseLayout title="Links — tapps.live" description="Every way to follow tapps: TikTok, Instagram, Bluesky, YouTube, GitHub, Behance, plus tapps.design, artbytapps.com and tracyappsdesign.com.">
+  <section class="hero section--flush">
+    <div class="hero-bg" aria-hidden="true"></div>
+    <div class="wrap hero-inner">
+      <span class="eyebrow">06 — the link wall</span>
+      <h1 class="wordmark glitch" data-text="SAY HI" style="font-size:clamp(64px,16vw,180px)">SAY HI</h1>
+      <p class="hero-sub">{pageLinks.heroNote}</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <span class="num">follow</span>
+          <h2>Social accounts</h2>
+        </div>
+        <span class="kicker">tap a tile to jump</span>
+      </div>
+      <div class="grid grid--2">
+        {socials.map((s, i) => <SocialTile link={s} delay={i * 60} />)}
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="portfolios">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <span class="num">the rest of the web presence</span>
+          <h2>Portfolios & studios</h2>
+        </div>
+        <span class="kicker">screenshots pressed in-house inks</span>
+      </div>
+      <div class="grid grid--3">
+        {portfolios.map((p, i) => {
+          const fills = ["fill-magenta", "fill-lime", "fill-sun"];
+          const fill = p.fill || fills[i % fills.length];
+          return (
+            <a class={`tile portfolio-tile tile--fill ${fill} reveal`} href={p.url} target="_blank" rel="noopener noreferrer" style={`--reveal-delay:${i * 60}ms`}>
+              <span class="note" style={{ "font-family": "var(--font-mono)", "font-size": "11px", "text-transform": "uppercase", "letter-spacing": "0.14em" } as Record<string, string>}>{p.note || "visit"}</span>
+              <h3 class="tile-title">{p.name}</h3>
+              <span class="link-arrow" style="color:inherit;margin-top:auto">visit ↗</span>
+              {p.screenshot_id ? (
+                <DuoImage src={`/media/${p.screenshot_id}`} alt={`${p.name} screenshot`} seed={`shot-${p.screenshot_id}`} ratio="16 / 10" />
+              ) : null}
+            </a>
+          );
+        })}
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="contact">
+    <div class="wrap contact-grid">
+      <div class="stack">
+        <span class="eyebrow">the inbox</span>
+        <h2 style="font-size:clamp(28px,4.5vw,46px)">Have a creative puzzle?</h2>
+        <p class="lead">Product design, consulting, teaching, or building something strange with LLMs. The first consultation is always free.</p>
+        <div class="grid" style="grid-template-columns:1fr 1fr;gap:16px;margin-top:8px">
+          <div class="tile">
+            <span class="kicker">email</span>
+            <p style="color:var(--fg);font-size:15px"><a href={`mailto:${profile.email}`}>{profile.email}</a></p>
+          </div>
+          {profile.phone && (
+            <div class="tile">
+              <span class="kicker">text / voice</span>
+              <p style="color:var(--fg);font-size:15px"><a href={`tel:+1${profile.phone.replace(/\D/g, "")}`}>{profile.phone}</a></p>
+            </div>
+          )}
+        </div>
+        <p class="chart-note">Central Time (US) · first consultation free</p>
+      </div>
+
+      <form class="contact-form" id="contact-form" novalidate data-email={profile.email}>
+        <div class="field">
+          <label for="c-name">Your name</label>
+          <input id="c-name" name="name" type="text" autocomplete="name" required aria-describedby="form-status" placeholder="Who's asking?" />
+        </div>
+        <div class="field">
+          <label for="c-email">Email</label>
+          <input id="c-email" name="email" type="email" autocomplete="email" required aria-describedby="form-status" placeholder="where to reply" />
+        </div>
+        <div class="field">
+          <label for="c-message">The puzzle</label>
+          <textarea id="c-message" name="message" rows="5" required aria-describedby="form-status" placeholder="Tell me what you're working on…"></textarea>
+        </div>
+        <p class="form-status" id="form-status" role="status" aria-live="polite"></p>
+        <button class="btn btn--primary" type="submit">Open in your mail app</button>
+        <p class="chart-note">This form hands off to your own email client. Nothing is stored on this site.</p>
+      </form>
+    </div>
+  </section>
+</BaseLayout>
+
+<script>
+  const form = document.getElementById("contact-form") as HTMLFormElement | null;
+  const status = document.getElementById("form-status");
+  if (form && status) {
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      if (!form.checkValidity()) {
+        status.style.color = "var(--accent)";
+        status.textContent = "Almost there — fill in name, email, and a message.";
+        const firstBad = form.querySelector(":invalid");
+        if (firstBad instanceof HTMLElement) firstBad.focus();
+        return;
+      }
+      const fields = form.elements;
+      const msg = encodeURIComponent(
+        `${(fields as unknown as Record<string, { value: string }>).message.value}\n\n— ${(fields as unknown as Record<string, { value: string }>).name.value} (${(fields as unknown as Record<string, { value: string }>).email.value})`
+      );
+      status.style.color = "var(--success)";
+      status.textContent = "Opening your mail app…";
+      const name = (fields as unknown as Record<string, { value: string }>).name.value;
+      window.location.href =
+        `mailto:${form.dataset.email}?subject=` +
+        encodeURIComponent(`Creative puzzle from ${name}`) +
+        "&body=" +
+        msg;
+    });
+  }
+</script>

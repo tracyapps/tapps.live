@@ -1,0 +1,196 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import SignalStrip from "../components/SignalStrip.astro";
+import Ticker from "../components/Ticker.astro";
+import ProjectTile from "../components/ProjectTile.astro";
+import Donut from "../components/Donut.astro";
+import VideoFrame from "../components/VideoFrame.astro";
+import SocialTile from "../components/SocialTile.astro";
+import DuoImage from "../components/DuoImage.astro";
+import { getKv, getProjects, getLinks } from "../lib/db";
+import { getFeedItems, getFeedMeta } from "../feeds/runner";
+
+const profile = getKv("profile", {
+  eyebrow: "Milwaukee · product designer · creative problem solver",
+  blurb: "",
+  email: "tracyapps@gmail.com",
+  sticker: "★ bowtie count: 180+"
+});
+const home = getKv("page:home", { nowTitle: "", nowBody: "", ctaTitle: "", ctaBody: "" });
+
+const projects = getProjects();
+const socials = getLinks("social");
+const tickerParts = projects
+  .filter((p) => p.status_label)
+  .map((p) => ({ name: p.name, note: p.status_label }));
+
+// live language split when GitHub has synced; the sample split until then
+const SAMPLE_LANGS = [
+  { label: "Swift", pct: 30 },
+  { label: "TypeScript", pct: 24 },
+  { label: "PHP", pct: 18 },
+  { label: "CSS", pct: 14 },
+  { label: "Astro", pct: 9 },
+  { label: "Other", pct: 5 }
+];
+const ghMeta = getFeedMeta<{ langs?: { label: string; pct: number }[] }>("github");
+const langs = ghMeta?.langs?.length ? ghMeta.langs : SAMPLE_LANGS;
+const langsNote = ghMeta?.langs?.length ? "live · github repos" : "sample · pinned";
+
+const artItems = getFeedItems("art", 3).filter((a) => a.image);
+const featured = projects.slice(0, 4);
+---
+<BaseLayout title="tapps.live — build log, projects & stream">
+  <section class="hero">
+    <div class="hero-bg" aria-hidden="true"></div>
+    <div class="wrap hero-inner">
+      <span class="eyebrow">{profile.eyebrow}</span>
+      <h1 class="wordmark glitch" data-text="TAPPS">TAPPS</h1>
+      <p class="hero-sub">{profile.blurb}</p>
+      <div class="hero-actions">
+        <a class="btn btn--primary" href="/projects">Explore the build log</a>
+        <a class="btn btn--ghost" href="/live">Watch the stream</a>
+      </div>
+      <p style="margin-top:24px"><span class="sticker" aria-hidden="true">{profile.sticker}</span></p>
+
+      <div class="hero-stats">
+        <div class="stat"><div class="n" data-count={projects.length}>0</div><div class="l">projects tracked</div></div>
+        <div class="stat"><div class="n" data-count="20" data-suffix="+">0</div><div class="l">years shipping</div></div>
+        <div class="stat"><div class="n">ONI</div><div class="l">streaming soon</div></div>
+        <div class="stat"><div class="n" data-count={socials.length}>0</div><div class="l">places to follow</div></div>
+      </div>
+    </div>
+  </section>
+
+  <SignalStrip />
+
+  <Ticker parts={tickerParts} />
+
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <span class="num">01 — on deck</span>
+          <h2>Things currently being built</h2>
+        </div>
+        <a class="link-arrow" href="/projects">all projects & status →</a>
+      </div>
+      <div class="grid grid--3">
+        {featured.map((p, i) => <ProjectTile project={p} delay={i * 70} />)}
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <span class="num">02 — the signal</span>
+          <h2>Right now</h2>
+        </div>
+        <span class="kicker" data-clock>— CT</span>
+      </div>
+
+      <div class="grid grid--2">
+        <article class="tile tile--feature fill-magenta">
+          <span class="kicker">now building</span>
+          <h3 class="tile-title">{home.nowTitle}</h3>
+          <p class="lead" style="font-size:15px" set:html={home.nowBody.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")} />
+          <div class="tile-meta">
+            <span class="tag">game design</span>
+            <span class="tag">product</span>
+            <span class="tag">llm-assisted dev</span>
+          </div>
+        </article>
+
+        <Donut title="Languages across public repos" note={langsNote} rows={langs} caption={ghMeta?.langs?.length ? "Live split from public repos, refreshed with the GitHub feed." : "Illustrative split from pinned repos — goes live when the GitHub feed connects."} />
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <span class="num">03 — the stream</span>
+          <h2>Oxygen Not Included, eventually</h2>
+        </div>
+        <a class="link-arrow" href="/live">stream page & frames →</a>
+      </div>
+      <div class="grid grid--2">
+        <VideoFrame mode="preview" badge="Preview" rightPill={{ status: "beta", label: "schedule TBD" }} />
+        <div class="stack">
+          <p class="lead">Colony logistics, existential crises, and me narrating pipe pressure like a nature documentary. The schedule is not locked yet — that is the honest answer, and the stream page says so plainly.</p>
+          <div class="grid" style="grid-template-columns:1fr 1fr">
+            <a class="social-tile fill-hot" href="https://youtube.com/tracyapps" target="_blank" rel="noopener noreferrer">
+              <span><span class="name">YouTube</span><br /><span class="handle">youtube.com/tracyapps</span></span>
+              <span class="arrow" aria-hidden="true">&#8599;</span>
+            </a>
+            <a class="social-tile fill-magenta" href="https://tiktok.com/@therealtapps" target="_blank" rel="noopener noreferrer">
+              <span><span class="name">TikTok</span><br /><span class="handle">@therealtapps</span></span>
+              <span class="arrow" aria-hidden="true">&#8599;</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {
+    artItems.length > 0 && (
+      <section class="section">
+        <div class="wrap">
+          <div class="section-head">
+            <div>
+              <span class="num">fresh off the easel</span>
+              <h2>Latest from artbytapps.com</h2>
+            </div>
+            <a class="link-arrow" href="/art">the whole wall →</a>
+          </div>
+          <div class="grid grid--3">
+            {artItems.map((a, i) => (
+              <a class="art-card reveal" href={a.url} target="_blank" rel="noopener noreferrer" style={`--reveal-delay:${i * 70}ms`}>
+                <DuoImage src={a.image!} alt={a.title} seed={a.guid} ratio="4 / 3" />
+                <figcaption>
+                  <span class="art-title">{a.title}</span>
+                </figcaption>
+              </a>
+            ))}
+          </div>
+        </div>
+      </section>
+    )
+  }
+
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <span class="num">04 — elsewhere</span>
+          <h2>{socials.length} places to follow</h2>
+        </div>
+        <a class="link-arrow" href="/links">the whole link wall →</a>
+      </div>
+      <div class="grid grid--3">
+        {socials.map((s, i) => <SocialTile link={s} delay={i * 60} />)}
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="grid grid--2">
+        <div class="stack">
+          <span class="eyebrow">available for the weird ones</span>
+          <h2 style="font-size:clamp(30px,5vw,52px)">{home.ctaTitle}</h2>
+          <p class="lead">{home.ctaBody}</p>
+        </div>
+        <div class="stack">
+          <a class="btn btn--primary" href={`mailto:${profile.email}`}>Email {profile.email}</a>
+          <a class="btn btn--ghost" href={profile.calendly} target="_blank" rel="noopener noreferrer">Schedule a time</a>
+          <a class="link-arrow" href="/links#portfolios">See the other portfolios →</a>
+        </div>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

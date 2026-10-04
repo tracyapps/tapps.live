@@ -1,0 +1,101 @@
+---
+import AdminLayout from "../../layouts/AdminLayout.astro";
+import { csrfToken } from "../../lib/auth";
+import { getFeedStatuses } from "../../feeds/runner";
+import { FEEDS } from "../../feeds/registry";
+import { getDB } from "../../lib/db";
+import { timeAgo } from "../../lib/format";
+
+const csrf = csrfToken();
+const back = "/admin/feeds";
+const statuses = getFeedStatuses();
+
+function dbConfig(id: string): Record<string, string> {
+  const row = getDB().prepare("SELECT config FROM feeds WHERE id = ?").get(id) as { config: string } | undefined;
+  try {
+    return JSON.parse(row?.config || "{}");
+  } catch {
+    return {};
+  }
+}
+---
+<AdminLayout title="Feeds" sub="Every integration and its on/off switch. Config saved here beats .env; keys never render back to the browser after save.">
+  <div class="status-grid">
+    {statuses.map((s) => {
+      const feed = FEEDS.find((f) => f.id === s.id);
+      const cfg = dbConfig(s.id);
+      return (
+        <div class="feed-card">
+          <div class="fc-head">
+            <span class="fc-icon" aria-hidden="true">{s.icon}</span>
+            <span class="fc-title">{s.label}</span>
+            <span class={`status status--${s.status}`}><span class="pip" aria-hidden="true" />{s.status}</span>
+          </div>
+
+          {s.linkOnly ? (
+            <p class="fc-desc">{s.note}</p>
+          ) : (
+            <>
+              <p class="fc-desc">{s.description}</p>
+
+              {s.lastError && s.status === "error" && <p class="fc-error">last error: {s.lastError}</p>}
+              {s.missingKeys.length > 0 && s.enabled && (
+                <p class="fc-error">needs: {s.missingKeys.join(", ")} — fill in below, or set the matching env var.</p>
+              )}
+
+              <div class="fc-meta">
+                <span>last refresh: {s.lastRefreshAt ? `${timeAgo(s.lastRefreshAt.replace(" ", "T") + "Z")} (${s.lastRefreshAt.replace("T", " ").slice(0, 16)} UTC)` : "never"}</span>
+                <span>items cached: {s.lastItemCount ?? 0} · every {s.refreshMinutes}m</span>
+                {s.lastTest && (
+                  <span class={s.lastTest.ok ? "fc-test-ok" : ""}>
+                    last test: {s.lastTest.ok ? "✓" : "✗"} {s.lastTest.message}
+                  </span>
+                )}
+              </div>
+
+              <form method="post" action="/admin/api/action" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                <input type="hidden" name="op" value="toggle-feed" />
+                <input type="hidden" name="csrf" value={csrf} />
+                <input type="hidden" name="back" value={back} />
+                <input type="hidden" name="id" value={s.id} />
+                <label class="switch" style="margin-right:auto">
+                  <input type="checkbox" checked={s.enabled} onchange="this.form.submit()" />
+                  <span class="track" aria-hidden="true" />
+                  <span class="sw-label">{s.enabled ? "on" : "off"}</span>
+                </label>
+                <button class="btn btn--solid btn--sm btn--mono" type="submit">{s.enabled ? "switch off" : "switch on"}</button>
+              </form>
+
+              {feed && (
+                <form method="post" action="/admin/api/action" style="display:grid;gap:10px;border-top:1px dashed var(--border);padding-top:12px">
+                  <input type="hidden" name="op" value="save-feed-config" />
+                  <input type="hidden" name="csrf" value={csrf} />
+                  <input type="hidden" name="back" value={back} />
+                  <input type="hidden" name="id" value={s.id} />
+                  {feed.fields.map((f) => (
+                    <div class="field">
+                      <label for={`cfg-${s.id}-${f.key}`}>{f.label}{f.help ? ` — ${f.help}` : ""}</label>
+                      <input
+                        id={`cfg-${s.id}-${f.key}`}
+                        name={f.key}
+                        type={f.type === "password" ? "password" : f.type === "url" ? "url" : "text"}
+                        placeholder={f.placeholder}
+                        value={f.type === "password" ? "" : cfg[f.key] ?? ""}
+                        autocomplete="off"
+                      />
+                      {f.type === "password" && <small>{cfg[f.key] ? "saved — leave blank to keep" : "not set"}</small>}
+                    </div>
+                  ))}
+                  <div class="form-row">
+                    <button class="btn btn--primary btn--sm btn--mono" type="submit">save + test</button>
+                    <span class="chart-note" style="margin:0">saving runs a connection test, then a first refresh</span>
+                  </div>
+                </form>
+              )}
+            </>
+          )}
+        </div>
+      );
+    })}
+  </div>
+</AdminLayout>

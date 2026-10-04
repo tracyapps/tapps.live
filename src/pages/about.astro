@@ -1,0 +1,109 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import DuoImage from "../components/DuoImage.astro";
+import { getKv } from "../lib/db";
+import { getProjects } from "../lib/db";
+
+const profile = getKv("profile", {
+  blurb: "",
+  location: "Milwaukee, Wisconsin"
+});
+const about = getKv("page:about", {
+  bio: [] as string[],
+  currently: "",
+  currentlyNote: "",
+  sticker: "",
+  skills: [] as string[]
+});
+const projects = getProjects();
+---
+<BaseLayout title="About — tapps.live" description="Tracy Apps (@tapps): creative problem solver, product designer, developer, artist, teacher. Milwaukee, Wisconsin.">
+  <section class="hero section--flush">
+    <div class="hero-bg" aria-hidden="true"></div>
+    <div class="wrap hero-inner">
+      <span class="eyebrow">05 — the human</span>
+      <h1 class="wordmark glitch" data-text="HI, I'M TAPPS" style="font-size:clamp(48px,12vw,150px)">HI, I'M TAPPS</h1>
+      <p class="hero-sub">{profile.blurb}</p>
+      <div class="hero-stats">
+        <div class="stat"><div class="n" data-count="20" data-suffix="+">0</div><div class="l">years shipping</div></div>
+        <div class="stat"><div class="n" data-count="180" data-suffix="+">0</div><div class="l">bowties owned</div></div>
+        <div class="stat"><div class="n" data-count={projects.length}>0</div><div class="l">projects on the bench</div></div>
+        <div class="stat"><div class="n">MKE</div><div class="l">{profile.location}</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap bio-grid">
+      <div class="bio-copy">
+        <span class="num">the long version</span>
+        <div class="stack-sm" style="margin-top:18px">
+          {about.bio.map((p) => <p set:html={p} />)}
+        </div>
+      </div>
+      <div class="stack">
+        <div class="studio-card noise">
+          <span class="halftone" aria-hidden="true"></span>
+          <span class="sticker" style="align-self:flex-start" aria-hidden="true">{about.sticker}</span>
+          <div style="position:relative">
+            <span class="kicker">currently</span>
+            <h3 style="font-size:var(--text-xl);margin-top:8px;position:relative">{about.currently}</h3>
+            <p style="color:var(--fg-2);font-size:14px;margin-top:8px;position:relative">{about.currentlyNote}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <span class="num">the toolkit</span>
+          <h2>Things I'm dangerous with</h2>
+        </div>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:10px">
+        {about.skills.map((s) => <span class="tag" style="font-size:14px;padding:9px 16px">{s}</span>)}
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="grid grid--2">
+        <div>
+          <span class="num">the operating system</span>
+          <h2 style="margin-top:12px">How I work</h2>
+          <p class="lead" style="margin-top:14px">Strategy and systems, not one-offs. Design & planning, product structure, flows, interface design, and a design language system I actually govern. Iterate, iterate, iterate.</p>
+          <div style="margin-top:28px;max-width:420px">
+            <DuoImage src="/duo-samples/tapps-duo-ultra-mint.png" alt="tapps portrait, ultra-violet and mint duotone" seed="about-portrait" ratio="1440 / 1560" />
+            <p class="chart-note" style="margin-top:10px">the duotone press: every image on this hub rides two inks — reroll ↻ to see the colorways</p>
+          </div>
+        </div>
+        <div>
+          <div class="value-row"><span class="idx">01</span><div><h3>Systems, not one-offs</h3><p>If it can't scale to the next screen or the next client, it isn't done.</p></div></div>
+          <div class="value-row"><span class="idx">02</span><div><h3>Accessibility is mandatory</h3><p>Contrast, keyboard, states, semantics — designed in, never patched on.</p></div></div>
+          <div class="value-row"><span class="idx">03</span><div><h3>Big picture, then the pixels</h3><p>Zoom all the way out, then sweat the details that make it feel alive.</p></div></div>
+          <div class="value-row" style="border-bottom:0"><span class="idx">04</span><div><h3>Build weird, wonderful things</h3><p>If it serves people and communities, I'm in — bowtie included.</p></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="grid grid--2">
+        <div class="stack">
+          <span class="eyebrow">enough about me</span>
+          <h2 style="font-size:clamp(28px,4.5vw,46px)">Projects, talks, teaching, collabs — or just to swap dad jokes.</h2>
+        </div>
+        <div class="stack">
+          <a class="btn btn--primary" href={`mailto:${profile.email}`}>Email {profile.email}</a>
+          {profile.phone && <a class="btn btn--ghost" href={`tel:+1${profile.phone.replace(/\D/g, "")}`}>Text / voice {profile.phone}</a>}
+          <a class="link-arrow" href={profile.calendly} target="_blank" rel="noopener noreferrer">Schedule a time →</a>
+        </div>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

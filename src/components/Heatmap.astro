@@ -1,0 +1,50 @@
+---
+import type { FeedItem } from "../feeds/types";
+
+interface Props {
+  items: FeedItem[]; // pass live GitHub events for a real rhythm grid
+  cells?: number;
+  title?: string;
+  note?: string;
+}
+
+const { items, cells = 90, title = "Build rhythm", note } = Astro.props;
+
+// One cell per day, newest last. Levels bucket by events-per-day quartiles.
+const days: { key: string; count: number }[] = [];
+const byDay = new Map<string, number>();
+for (const item of items) {
+  if (!item.publishedAt) continue;
+  const key = item.publishedAt.slice(0, 10);
+  byDay.set(key, (byDay.get(key) || 0) + 1);
+}
+for (let i = cells - 1; i >= 0; i--) {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() - i);
+  const key = d.toISOString().slice(0, 10);
+  days.push({ key, count: byDay.get(key) || 0 });
+}
+const active = days.filter((d) => d.count > 0).map((d) => d.count).sort((a, b) => a - b);
+const q = (p: number) => (active.length ? active[Math.min(active.length - 1, Math.floor(active.length * p))] : 1);
+const t1 = Math.max(1, q(0.4));
+const t2 = Math.max(t1 + 1, q(0.65));
+const t3 = Math.max(t2 + 1, q(0.85));
+const level = (n: number) => (n === 0 ? 0 : n < t1 ? 1 : n < t2 ? 2 : n < t3 ? 3 : 4);
+const live = active.length > 0;
+const summary = live
+  ? `Real commit-frequency heatmap from ${active.length} active days in the last ${cells} days.`
+  : "No live event data yet — the grid fills in as the GitHub feed refreshes.";
+---
+<div class="chart">
+  <div class="chart-title"><span>{title}</span><span>{live ? "live · github" : "waiting for data"}</span></div>
+  <div class="heatmap" role="img" aria-label={summary}>
+    {days.map((d) => (
+      <span
+        class="heat-cell"
+        data-level={level(d.count)}
+        title={`${d.key}: ${d.count} event${d.count === 1 ? "" : "s"}`}
+      />
+    ))}
+  </div>
+  <p class="chart-note">{note ?? summary}</p>
+</div>

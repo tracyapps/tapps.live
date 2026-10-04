@@ -1,0 +1,193 @@
+---
+import AdminLayout from "../../layouts/AdminLayout.astro";
+import { csrfToken } from "../../lib/auth";
+import { getAllLinks } from "../../lib/db";
+
+const csrf = csrfToken();
+const back = "/admin/links";
+const socials = getAllLinks("social");
+const portfolios = getAllLinks("portfolio");
+const fills = ["", "fill-magenta", "fill-lime", "fill-sun", "fill-hot", "fill-tang", "fill-mint", "fill-grape"];
+---
+<AdminLayout title="Links" sub="Socials, portfolios, and their screenshots. Portfolio screenshots ride the duotone press on the public links page.">
+  <h2 style="font-size:var(--text-lg);margin-bottom:14px">socials</h2>
+  <div class="table-wrap" style="margin-bottom:24px">
+    <table class="admin-table">
+      <thead><tr><th>#</th><th>name</th><th>handle</th><th>visible</th><th>actions</th></tr></thead>
+      <tbody>
+        {socials.map((l) => (
+          <tr>
+            <td class="muted">{l.sort}</td>
+            <td><b>{l.name}</b><br /><span class="kicker">{l.fill || "no fill"}</span></td>
+            <td><code style="font-family:var(--font-mono);font-size:12px">{l.handle}</code></td>
+            <td>{l.visible ? "✓" : "hidden"}</td>
+            <td class="actions">
+              <form method="post" action="/admin/api/action" style="display:inline">
+                <input type="hidden" name="op" value="move-link" /><input type="hidden" name="csrf" value={csrf} />
+                <input type="hidden" name="back" value={back} /><input type="hidden" name="id" value={l.id} /><input type="hidden" name="dir" value="up" />
+                <button class="btn btn--solid btn--sm" type="submit" aria-label="up">↑</button>
+              </form>
+              <form method="post" action="/admin/api/action" style="display:inline">
+                <input type="hidden" name="op" value="move-link" /><input type="hidden" name="csrf" value={csrf} />
+                <input type="hidden" name="back" value={back} /><input type="hidden" name="id" value={l.id} /><input type="hidden" name="dir" value="down" />
+                <button class="btn btn--solid btn--sm" type="submit" aria-label="down">↓</button>
+              </form>
+              <form method="post" action="/admin/api/action" style="display:inline">
+                <input type="hidden" name="op" value="delete-link" /><input type="hidden" name="csrf" value={csrf} />
+                <input type="hidden" name="back" value={back} /><input type="hidden" name="id" value={l.id} />
+                <button class="btn btn--danger btn--sm btn--mono" type="submit">delete</button>
+              </form>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+
+  {socials.map((l) => (
+    <details class="form-block" style="margin-bottom:14px">
+      <summary>edit — {l.name}</summary>
+      <form class="form-body" method="post" action="/admin/api/action">
+        <input type="hidden" name="op" value="save-link" />
+        <input type="hidden" name="csrf" value={csrf} />
+        <input type="hidden" name="back" value={back} />
+        <input type="hidden" name="id" value={l.id} />
+        <input type="hidden" name="kind" value="social" />
+        <div class="form-grid">
+          <div class="field"><label>name</label><input name="name" value={l.name} /></div>
+          <div class="field"><label>handle</label><input name="handle" value={l.handle} /></div>
+          <div class="field"><label>url</label><input name="url" value={l.url} /></div>
+          <div class="field">
+            <label>fill</label>
+            <select name="fill">{fills.map((f) => <option value={f} selected={l.fill === f}>{f || "none"}</option>)}</select>
+          </div>
+          <div class="field"><label>note</label><input name="note" value={l.note} /></div>
+          <div class="field"><label>sort</label><input name="sort" value={l.sort} /></div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" name="visible" checked={l.visible} />
+          <span class="track" aria-hidden="true" />
+          <span class="sw-label">visible</span>
+        </label>
+        <div><button class="btn btn--primary btn--sm btn--mono" type="submit">save</button></div>
+      </form>
+    </details>
+  ))}
+
+  <details class="form-block" style="margin-bottom:40px">
+    <summary>+ new social</summary>
+    <form class="form-body" method="post" action="/admin/api/action">
+      <input type="hidden" name="op" value="save-link" />
+      <input type="hidden" name="csrf" value={csrf} />
+      <input type="hidden" name="back" value={back} />
+      <input type="hidden" name="kind" value="social" />
+      <div class="form-grid">
+        <div class="field"><label>name</label><input name="name" placeholder="Mastodon" /></div>
+        <div class="field"><label>handle</label><input name="handle" placeholder="@tapps" /></div>
+        <div class="field"><label>url</label><input name="url" placeholder="https://" /></div>
+        <div class="field">
+          <label>fill</label>
+          <select name="fill">{fills.map((f) => <option value={f}>{f || "none"}</option>)}</select>
+        </div>
+      </div>
+      <label class="switch"><input type="checkbox" name="visible" checked /><span class="track" aria-hidden="true" /><span class="sw-label">visible</span></label>
+      <div><button class="btn btn--primary btn--sm btn--mono" type="submit">add social</button></div>
+    </form>
+  </details>
+
+  <h2 style="font-size:var(--text-lg);margin-bottom:14px">portfolios & sites</h2>
+  <div class="table-wrap" style="margin-bottom:24px">
+    <table class="admin-table">
+      <thead><tr><th>#</th><th>name</th><th>note</th><th>screenshot</th><th>actions</th></tr></thead>
+      <tbody>
+        {portfolios.map((l) => (
+          <tr>
+            <td class="muted">{l.sort}</td>
+            <td><b>{l.name}</b><br /><code style="font-family:var(--font-mono);font-size:11px">{l.url}</code></td>
+            <td>{l.note}</td>
+            <td>{l.screenshot_id ? <a href={`/media/${l.screenshot_id}`} target="_blank" rel="noopener">#{l.screenshot_id} ↗</a> : <span class="muted">none</span>}</td>
+            <td class="actions">
+              <form method="post" action="/admin/api/action" style="display:inline">
+                <input type="hidden" name="op" value="move-link" /><input type="hidden" name="csrf" value={csrf} />
+                <input type="hidden" name="back" value={back} /><input type="hidden" name="id" value={l.id} /><input type="hidden" name="dir" value="up" />
+                <button class="btn btn--solid btn--sm" type="submit" aria-label="up">↑</button>
+              </form>
+              <form method="post" action="/admin/api/action" style="display:inline">
+                <input type="hidden" name="op" value="move-link" /><input type="hidden" name="csrf" value={csrf} />
+                <input type="hidden" name="back" value={back} /><input type="hidden" name="id" value={l.id} /><input type="hidden" name="dir" value="down" />
+                <button class="btn btn--solid btn--sm" type="submit" aria-label="down">↓</button>
+              </form>
+              <form method="post" action="/admin/api/action" style="display:inline">
+                <input type="hidden" name="op" value="delete-link" /><input type="hidden" name="csrf" value={csrf} />
+                <input type="hidden" name="back" value={back} /><input type="hidden" name="id" value={l.id} />
+                <button class="btn btn--danger btn--sm btn--mono" type="submit">delete</button>
+              </form>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+
+  {portfolios.map((l) => (
+    <details class="form-block" style="margin-bottom:14px">
+      <summary>edit — {l.name}</summary>
+      <form class="form-body" method="post" action="/admin/api/action">
+        <input type="hidden" name="op" value="save-link" />
+        <input type="hidden" name="csrf" value={csrf} />
+        <input type="hidden" name="back" value={back} />
+        <input type="hidden" name="id" value={l.id} />
+        <input type="hidden" name="kind" value="portfolio" />
+        <div class="form-grid">
+          <div class="field"><label>name</label><input name="name" value={l.name} /></div>
+          <div class="field"><label>url</label><input name="url" value={l.url} /></div>
+          <div class="field"><label>note</label><input name="note" value={l.note} /></div>
+          <div class="field">
+            <label>fill</label>
+            <select name="fill">{fills.map((f) => <option value={f} selected={l.fill === f}>{f || "none"}</option>)}</select>
+          </div>
+          <div class="field"><label>sort</label><input name="sort" value={l.sort} /></div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" name="visible" checked={l.visible} />
+          <span class="track" aria-hidden="true" />
+          <span class="sw-label">visible</span>
+        </label>
+        <div><button class="btn btn--primary btn--sm btn--mono" type="submit">save</button></div>
+      </form>
+      <form method="post" action="/admin/api/action" enctype="multipart/form-data" style="border-top:1px dashed var(--border);padding-top:14px;display:grid;gap:10px">
+        <input type="hidden" name="op" value="upload-media" />
+        <input type="hidden" name="csrf" value={csrf} />
+        <input type="hidden" name="back" value={back} />
+        <input type="hidden" name="attach" value="portfolio" />
+        <input type="hidden" name="link_id" value={l.id} />
+        <div class="field">
+          <label>upload screenshot (becomes the site card's duotone image)</label>
+          <input type="file" name="file" accept="image/*" required />
+        </div>
+        <div><button class="btn btn--solid btn--sm btn--mono" type="submit">upload for {l.name}</button></div>
+      </form>
+    </details>
+  ))}
+
+  <details class="form-block">
+    <summary>+ new portfolio / site</summary>
+    <form class="form-body" method="post" action="/admin/api/action">
+      <input type="hidden" name="op" value="save-link" />
+      <input type="hidden" name="csrf" value={csrf} />
+      <input type="hidden" name="back" value={back} />
+      <input type="hidden" name="kind" value="portfolio" />
+      <div class="form-grid">
+        <div class="field"><label>name</label><input name="name" placeholder="newsite.com" /></div>
+        <div class="field"><label>url</label><input name="url" placeholder="https://" /></div>
+        <div class="field"><label>note</label><input name="note" placeholder="main portfolio" /></div>
+        <div class="field">
+          <label>fill</label>
+          <select name="fill">{fills.map((f) => <option value={f}>{f || "none"}</option>)}</select>
+        </div>
+      </div>
+      <label class="switch"><input type="checkbox" name="visible" checked /><span class="track" aria-hidden="true" /><span class="sw-label">visible</span></label>
+      <div><button class="btn btn--primary btn--sm btn--mono" type="submit">add site</button></div>
+    </form>
+  </details>
+</AdminLayout>

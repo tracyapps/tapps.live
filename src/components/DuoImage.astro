@@ -1,0 +1,48 @@
+---
+// Duotone figure — the live equivalent of the export's ImageMagick posters:
+// SVG two-ink filter + dot field + scanlines, deterministic colorway per
+// seed, click ↻ to cycle inks. Also the treatment for imported art and
+// portfolio screenshots, so everything foreign adopts the house style.
+import { pickColorway } from "../lib/palette";
+
+interface Props {
+  src: string;
+  alt: string;
+  seed: string;
+  ratio?: string; // css aspect-ratio value, e.g. "16 / 10"
+  class?: string;
+  hoverable?: boolean;
+  reroll?: boolean;
+  imgClass?: string;
+}
+
+const { src, alt, seed, ratio, class: cls, hoverable = true, reroll = true, imgClass } = Astro.props;
+const cw = pickColorway(seed);
+---
+<figure
+  class={`duo ${hoverable ? "duo--hoverable" : ""} ${cls ?? ""}`}
+  data-colorway={cw.id}
+  style={ratio ? `aspect-ratio:${ratio}` : undefined}
+>
+  <img
+    src={src}
+    alt={alt}
+    loading="lazy"
+    decoding="async"
+    class={imgClass}
+    style={`filter:url(#duo-${cw.id}) saturate(1.05)`}
+  />
+  {reroll && (
+    <button
+      class="duo-reroll"
+      type="button"
+      data-duo-reroll
+      aria-label={`Reroll ink treatment (currently ${cw.label})`}
+      title={`ink: ${cw.label} — reroll?`}
+    >
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true">
+        <path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6" />
+      </svg>
+    </button>
+  )}
+</figure>

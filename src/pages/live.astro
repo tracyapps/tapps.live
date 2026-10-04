@@ -1,0 +1,185 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import VideoFrame from "../components/VideoFrame.astro";
+import DuoImage from "../components/DuoImage.astro";
+import StatusPill from "../components/StatusPill.astro";
+import TrackList from "../components/TrackList.astro";
+import { getKv } from "../lib/db";
+import { getFeedMeta, getFeedItems, getFeedStatuses } from "../feeds/runner";
+
+const live = getKv("page:live", {
+  game: "Oxygen Not Included",
+  gameBlurb: "",
+  rulesTitle: "",
+  rulesBlurb: "",
+  scheduleNote: "",
+  slots: [] as { day: string; time: string; note: string }[]
+});
+
+const twitchMeta = getFeedMeta<{
+  live?: { live: boolean; title?: string; game?: string; viewers?: number; startedAt?: string; thumbnail?: string; channelUrl: string };
+}>("twitch");
+const twitchStatus = getFeedStatuses().find((s) => s.id === "twitch");
+const isLive = !!twitchMeta?.live?.live;
+const twitchConfigured = twitchStatus?.status !== "needs-config" && twitchStatus?.enabled;
+
+const embedUrl = isLive
+  ? `https://player.twitch.tv/?channel=${twitchMeta!.live!.channelUrl.split("/").pop()}&parent=${Astro.url.hostname}&muted=false`
+  : undefined;
+
+const videos = getFeedItems("youtube", 4);
+---
+<BaseLayout title="Live & stream — tapps.live" description="Oxygen Not Included streams from tapps: live status, broadcast frames, the schedule, and where to follow.">
+  <section class="hero section--flush">
+    <div class="hero-bg" aria-hidden="true"></div>
+    <div class="wrap hero-inner">
+      <span class="eyebrow">04 — the stream</span>
+      <h1 class="wordmark glitch" data-text="LIVE FROM THE COLONY" style="font-size:clamp(32px,7.5vw,96px)">LIVE FROM THE COLONY</h1>
+      <p class="hero-sub">Oxygen Not Included, played slowly and narrated too much. The schedule is not locked yet, so this page won't pretend it is. What it <em>does</em> have: a live-status badge, a full set of broadcast frames, and the layout system behind them.</p>
+      <div class="hero-actions">
+        <a class="btn btn--primary" href={twitchMeta?.live?.channelUrl ?? "https://youtube.com/tracyapps"} target="_blank" rel="noopener noreferrer">
+          {isLive ? "Watch live on Twitch" : "Follow on YouTube"}
+        </a>
+        <a class="btn btn--ghost" href="https://tiktok.com/@therealtapps" target="_blank" rel="noopener noreferrer">Clips on TikTok</a>
+      </div>
+      <p style="margin-top:22px">
+        {isLive ? (
+          <span class="status status--live"><span class="pip" aria-hidden="true"></span>LIVE · {twitchMeta?.live?.viewers ?? 0} watching</span>
+        ) : twitchConfigured ? (
+          <span class="status status--beta"><span class="pip" aria-hidden="true"></span>Offline · planning · schedule TBD</span>
+        ) : (
+          <span class="status status--soon"><span class="pip" aria-hidden="true"></span>Twitch status lands once the keys are in</span>
+        )}
+      </p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <span class="num">the stage</span>
+          <h2>{isLive ? "Live right now" : "Broadcast layout"}</h2>
+        </div>
+        <span class="kicker">{isLive ? "16:9 · live embed" : "16:9 · preview"}</span>
+      </div>
+      {isLive ? (
+        <div>
+          <VideoFrame
+            mode="live"
+            badge="LIVE"
+            embedUrl={embedUrl}
+            who="tapps"
+            game={twitchMeta?.live?.game ?? live.game}
+          />
+          {twitchMeta?.live?.title && <p class="chart-note" style="margin-top:14px">now: {twitchMeta.live.title}</p>}
+        </div>
+      ) : (
+        <div>
+          <VideoFrame mode="preview" badge="Preview" rightPill={{ status: "live", label: "Live" }} game={`${live.game} · colony attempt #47`} chat={[
+            { who: "@dupefan", msg: "that oxygen gauge is a cry for help" },
+            { who: "@pixelpal", msg: "build the bathroom first!!" },
+            { who: "@tapps", msg: "we do not discuss the ratio" }
+          ]} />
+          <p class="chart-note">Preview only — no live video is embedded. The frame is the design system's reusable broadcast shell; when Twitch goes live, this slot becomes the real player.</p>
+        </div>
+      )}
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <span class="num">the frame set</span>
+          <h2>Four broadcast states</h2>
+        </div>
+        <span class="kicker">reusable · OBS ready</span>
+      </div>
+      <div class="grid grid--2">
+        <VideoFrame badge="BRB" centerTitle="Starting soon" centerSub="grab a beverage · we're 5 min out" />
+        <VideoFrame badge="AFK" centerTitle="Be right back" centerSub="music playing · colony on pause" />
+        <VideoFrame badge="Off" centerTitle="Thanks for watching" centerSub="follow · youtube.com/tracyapps" />
+        <VideoFrame badge="Live" centerTitle="Gameplay area" centerSub="webcam inset bottom-left · chat right rail" />
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="grid grid--2">
+        <div>
+          <span class="num">the plan (such as it is)</span>
+          <h2 style="margin-top:12px">Schedule</h2>
+          <p class="lead" style="margin-top:14px">{live.scheduleNote}</p>
+          <table class="schedule" style="margin-top:28px">
+            <caption class="sr-only">Proposed stream nights, all currently open</caption>
+            <thead>
+              <tr><th scope="col">Day</th><th scope="col">Time</th><th scope="col">Status</th></tr>
+            </thead>
+            <tbody>
+              {live.slots.map((s) => (
+                <tr>
+                  <td>{s.day}</td>
+                  <td>{s.time}</td>
+                  <td><StatusPill status="soon" label={s.note} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div class="stack">
+          <div class="tile">
+            <span class="kicker">the game</span>
+            <h3 class="tile-title">{live.game}</h3>
+            <p>{live.gameBlurb}</p>
+          </div>
+          <div class="tile">
+            <span class="kicker">house rules</span>
+            <h3 class="tile-title">{live.rulesTitle}</h3>
+            <p>{live.rulesBlurb}</p>
+          </div>
+          <div class="tile">
+            <span class="kicker">where</span>
+            <h3 class="tile-title">Wherever you already are</h3>
+            <p>Streams land on Twitch and YouTube; short clips go to TikTok and Instagram so you can catch the best collapses.</p>
+            <div class="hero-actions" style="margin-top:6px">
+              <a class="btn btn--ghost btn--sm" href="https://youtube.com/tracyapps" target="_blank" rel="noopener noreferrer">YouTube</a>
+              <a class="btn btn--ghost btn--sm" href="https://tiktok.com/@therealtapps" target="_blank" rel="noopener noreferrer">TikTok</a>
+              <a class="btn btn--ghost btn--sm" href="https://instagram.com/tapps" target="_blank" rel="noopener noreferrer">Instagram</a>
+            </div>
+          </div>
+          <TrackList title="Colony soundtrack" />
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {
+    videos.length > 0 && (
+      <section class="section">
+        <div class="wrap">
+          <div class="section-head">
+            <div>
+              <span class="num">on youtube</span>
+              <h2>Latest videos</h2>
+            </div>
+            <a class="link-arrow" href="https://youtube.com/tracyapps" target="_blank" rel="noopener noreferrer">the channel ↗</a>
+          </div>
+          <div class="grid grid--2">
+            {videos.map((v, i) =>
+              v.image ? (
+                <a class="art-card reveal" href={v.url} target="_blank" rel="noopener noreferrer" style={`--reveal-delay:${i * 60}ms`}>
+                  <DuoImage src={v.image} alt={v.title} seed={v.guid} ratio="16 / 9" />
+                  <figcaption>
+                    <span class="art-title">{v.title}</span>
+                  </figcaption>
+                </a>
+              ) : null
+            )}
+          </div>
+        </div>
+      </section>
+    )
+  }
+</BaseLayout>

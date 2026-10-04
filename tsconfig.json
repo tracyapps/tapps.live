@@ -1,0 +1,11 @@
+{
+  "extends": "astro/tsconfigs/strict",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "~/*": ["src/*"]
+    },
+    "types": ["node"]
+  },
+  "exclude": ["dist", "node_modules", "_design-Tapps-Dev-Hub-Site"]
+}

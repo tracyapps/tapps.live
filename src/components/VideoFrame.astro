@@ -1,0 +1,77 @@
+---
+// Broadcast shell — live embed when Twitch is live, the preview scene
+// (procedural colony dots + scanlines) when it isn't. Same frame either way.
+interface Props {
+  mode?: "live" | "preview" | "starting" | "brb" | "ended";
+  badge?: string;
+  who?: string;
+  game?: string;
+  rightPill?: { status: string; label: string };
+  chat?: { who: string; msg: string }[];
+  embedUrl?: string;
+  centerTitle?: string;
+  centerSub?: string;
+}
+const {
+  mode = "preview",
+  badge = "Preview",
+  who = "tapps",
+  game = "Oxygen Not Included",
+  rightPill,
+  chat = [
+    { who: "@pixelpal", msg: "the pipe pressure!!" },
+    { who: "@dupefan", msg: "colony looking cozy" },
+    { who: "@tapps", msg: "we do not talk about the oxygen" }
+  ],
+  embedUrl,
+  centerTitle,
+  centerSub
+} = Astro.props;
+
+const offBadge = mode !== "live";
+---
+{
+  embedUrl && mode === "live" ? (
+    <div class="video-embed">
+      <iframe src={embedUrl} title={`${who} live on Twitch`} allowfullscreen referrerpolicy="no-referrer-when-downgrade" />
+    </div>
+  ) : (
+    <div
+      class="video-frame noise"
+      role="img"
+      aria-label={`Stream frame: ${mode}. ${centerTitle ?? `${who} playing ${game}`}`}
+    >
+      <span class="scene" aria-hidden="true" />
+      <span class="scan" aria-hidden="true" />
+      <span class={`vf-badge ${offBadge ? "vf-badge--off" : ""}`}>
+        <span class="pip" aria-hidden="true" />
+        {badge}
+      </span>
+      <div class="vf-chat" aria-hidden="true">
+        {chat.map((c) => (
+          <div class="msg">
+            <b>{c.who}</b> {c.msg}
+          </div>
+        ))}
+      </div>
+      {centerTitle && (
+        <div class="frame-center">
+          <span class="big">{centerTitle}</span>
+          {centerSub && <span class="sub">{centerSub}</span>}
+        </div>
+      )}
+      <div class="vf-lower">
+        <div>
+          <div class="who">{who}</div>
+          <div class="game">{game}</div>
+        </div>
+        {rightPill && (
+          <span class={`status status--${rightPill.status}`}>
+            <span class="pip" aria-hidden="true" />
+            {rightPill.label}
+          </span>
+        )}
+      </div>
+    </div>
+  )
+}

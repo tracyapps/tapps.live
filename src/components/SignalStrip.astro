@@ -1,0 +1,106 @@
+---
+// The hub's heartbeat row: one glance = "is anything alive right now".
+import { getFeedStatuses, getFeedItems, getFeedMeta } from "../feeds/runner";
+import { timeAgo } from "../lib/format";
+
+interface Cell {
+  label: string;
+  value: string;
+  href?: string;
+  title?: string;
+  live?: boolean;
+}
+
+const cells: Cell[] = [];
+
+// Twitch
+const twitchMeta = getFeedMeta<{ live?: { live: boolean; title?: string; game?: string; viewers?: number; channelUrl: string } }>("twitch");
+if (twitchMeta?.live) {
+  cells.push(
+    twitchMeta.live.live
+      ? {
+          label: "twitch",
+          value: `LIVE · ${twitchMeta.live.game ?? "streaming"} · ${twitchMeta.live.viewers ?? 0} watching`,
+          href: twitchMeta.live.channelUrl,
+          live: true
+        }
+      : { label: "twitch", value: "offline · schedule TBD", href: twitchMeta.live.channelUrl }
+  );
+}
+
+// GitHub: latest event
+const [latestEvent] = getFeedItems("github", 1);
+if (latestEvent?.publishedAt) {
+  cells.push({
+    label: "last push",
+    value: latestEvent.title,
+    href: latestEvent.url,
+    title: latestEvent.detail
+  });
+}
+
+// Art: latest artwork
+const [latestArt] = getFeedItems("art", 1);
+if (latestArt?.publishedAt) {
+  cells.push({ label: "latest art", value: latestArt.title, href: latestArt.url });
+}
+
+// last.fm: now playing
+const lfmMeta = getFeedMeta<{ nowPlaying?: { name: string; artist: string } | null }>("lastfm");
+if (lfmMeta?.nowPlaying) {
+  cells.push({
+    label: "spinning",
+    value: `${lfmMeta.nowPlaying.name} — ${lfmMeta.nowPlaying.artist}`,
+    live: true
+  });
+}
+
+// Bluesky: latest post
+const [latestSkeet] = getFeedItems("bluesky", 1);
+if (latestSkeet?.publishedAt) {
+  cells.push({ label: "bluesky", value: latestSkeet.title, href: latestSkeet.url });
+}
+
+// freshness: feeds overall
+const statuses = getFeedStatuses().filter((s) => !s.linkOnly);
+const okCount = statuses.filter((s) => s.status === "ok").length;
+cells.push({
+  label: "feeds",
+  value: `${okCount}/${statuses.length} connected`,
+  href: "/admin/status",
+  title: statuses.map((s) => `${s.label}: ${s.status}`).join(" · ")
+});
+---
+{
+  cells.length ? (
+    <div class="signal" role="status" aria-label="Live signals across connected feeds">
+      {cells.map((c) => (
+        <div class="signal-cell" title={c.title}>
+          <span
+            class={`pip ${c.live ? "pip--live" : ""}`}
+            aria-hidden="true"
+            style={`width:8px;height:8px;border-radius:50%;flex:none;${c.live ? "background:var(--success);box-shadow:0 0 10px var(--success);animation:pulse 1.8s ease-in-out infinite;" : "background:var(--muted);opacity:.6;"}`}
+          />
+          <span style="min-width:0;display:grid;gap:2px">
+            <span class="sig-label">{c.label}</span>
+            {c.href ? (
+              <a class="sig-value" href={c.href} target={c.href.startsWith("http") ? "_blank" : undefined} rel={c.href.startsWith("http") ? "noopener noreferrer" : undefined}>
+                {c.value}
+              </a>
+            ) : (
+              <span class="sig-value">{c.value}</span>
+            )}
+          </span>
+        </div>
+      ))}
+    </div>
+  ) : (
+    <div class="signal" role="status">
+      <div class="signal-cell">
+        <span class="sig-label">the hub is warming up</span>
+        <span class="sig-value">feeds refresh in a moment — everything lands here</span>
+      </div>
+    </div>
+  )
+}
+<span class="sr-only">{timeAgo(latestEvent?.publishedAt)}</span>

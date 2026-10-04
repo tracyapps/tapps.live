@@ -1,0 +1,44 @@
+---
+import type { Project } from "../lib/db";
+import StatusPill from "./StatusPill.astro";
+
+interface Props {
+  project: Project;
+  delay?: number;
+  showProgress?: boolean;
+}
+const { project: p, delay = 0, showProgress = true } = Astro.props;
+const tags = (p.tags || []).slice(0, 3);
+const stack = p.stack || [];
+const fill = p.fill && p.fill !== "none" ? p.fill : "";
+---
+<article class={`tile ${fill} reveal`} style={`--reveal-delay:${delay}ms`}>
+  <div class="tile-head">
+    <StatusPill status={p.status} label={p.status_label || p.status} />
+    <span class="kicker">{p.since}</span>
+  </div>
+  <h3 class="tile-title">
+    <a href={p.url} target="_blank" rel="noopener noreferrer">{p.name}</a>
+  </h3>
+  <p>{p.tagline}</p>
+  {
+    showProgress &&
+      (p.progress == null ? (
+        <span class="kicker">roadmap coming</span>
+      ) : (
+        <div class="progress-row">
+          <div class="top">
+            <span class="kicker">build progress</span>
+            <b>{p.progress}%</b>
+          </div>
+          <div class="bar">
+            <span class="bar-fill" style={`width:${p.progress}%`} />
+          </div>
+        </div>
+      ))
+  }
+  <div class="tile-meta">
+    {tags.map((t) => <span class="tag">{t}</span>)}
+    {stack.slice(0, 3).map((t) => <span class="tag">{t}</span>)}
+  </div>
+</article>

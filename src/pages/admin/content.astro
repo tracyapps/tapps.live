@@ -1,0 +1,276 @@
+---
+import AdminLayout from "../../layouts/AdminLayout.astro";
+import BlockList from "../../components/admin/BlockList.astro";
+import { csrfToken } from "../../lib/auth";
+import { getKv, getDB } from "../../lib/db";
+
+const csrf = csrfToken();
+const back = "/admin/content";
+
+const pageRegions = [
+  {
+    key: "home",
+    label: "Home",
+    url: "/",
+    blurb: "Hero copy, the “right now” tile, and the closing CTA.",
+    fields: [
+      { name: "c_nowTitle", label: "now-building tile title" },
+      { name: "c_ctaTitle", label: "closing CTA title" }
+    ],
+    textareas: [
+      { name: "c_nowBody", label: "now-building tile body (**bold** allowed)" },
+      { name: "c_ctaBody", label: "closing CTA body" }
+    ]
+  },
+  {
+    key: "about",
+    label: "About",
+    url: "/about",
+    blurb: "Bio paragraphs, the studio card, and the skill cloud.",
+    fields: [
+      { name: "c_currently", label: "currently building" },
+      { name: "c_currentlyNote", label: "currently note" },
+      { name: "c_sticker", label: "sticker text" }
+    ],
+    textareas: [
+      { name: "bio", label: "bio paragraphs (blank line between paragraphs)", isSpecial: true },
+      { name: "skills", label: "skills (comma separated)", isSpecial: true }
+    ]
+  },
+  {
+    key: "live",
+    label: "Live",
+    url: "/live",
+    blurb: "Game blurb, house rules, schedule.",
+    fields: [
+      { name: "c_game", label: "game name" },
+      { name: "c_rulesTitle", label: "house rules title" }
+    ],
+    textareas: [
+      { name: "c_gameBlurb", label: "game blurb" },
+      { name: "c_rulesBlurb", label: "house rules blurb" },
+      { name: "c_scheduleNote", label: "schedule note" },
+      { name: "slots", label: "schedule slots — one per line: day | time | status", isSpecial: true }
+    ]
+  },
+  {
+    key: "links",
+    label: "Links",
+    url: "/links",
+    blurb: "The link wall intro.",
+    fields: [],
+    textareas: [{ name: "c_heroNote", label: "hero note" }]
+  }
+] as const;
+
+const pages = getDB().prepare("SELECT * FROM pages ORDER BY sort, id").all() as {
+  id: number; slug: string; title: string; kicker: string; intro: string; blocks: string; published: number; sort: number;
+}[];
+
+// current value for a content-region field, in editable form
+function regionContent(key: string): Record<string, string> {
+  return getKv("page:" + key, {}) as Record<string, string>;
+}
+
+function regionValue(name: string, content: Record<string, unknown>): string {
+  if (name === "bio") {
+    const bio = (content.bio as string[] | undefined) ?? [];
+    return bio.join("\n\n");
+  }
+  if (name === "skills") {
+    const skills = (content.skills as string[] | undefined) ?? [];
+    return skills.join(", ");
+  }
+  if (name === "slots") {
+    const slots = (content.slots as { day: string; time: string; note: string }[] | undefined) ?? [];
+    return slots.map((s) => `${s.day} | ${s.time} | ${s.note}`).join("\n");
+  }
+  const key = name.replace(/^c_/, "");
+  return String(content[key] ?? "");
+}
+
+const blockEditors = (page: (typeof pages)[number] | null) => {
+  let blocks: { type: string; [k: string]: unknown }[] = [];
+  try { blocks = page ? JSON.parse(page.blocks) : []; } catch { blocks = []; }
+  return blocks;
+};
+---
+<AdminLayout title="Content" sub="Edit the built-in pages and build new ones from blocks. Changes go live on save — no rebuild.">
+  {pageRegions.map((region) => {
+    const content = regionContent(region.key);
+    return (
+      <details class="form-block" style="margin-bottom:16px">
+        <summary>{region.label} <span class="kicker" style="margin-left:auto">{region.url}</span></summary>
+        <form class="form-body" method="post" action="/admin/api/action">
+          <input type="hidden" name="op" value="save-page-content" />
+          <input type="hidden" name="csrf" value={csrf} />
+          <input type="hidden" name="back" value={back} />
+          <input type="hidden" name="page" value={region.key} />
+          {region.fields.length > 0 && (
+            <div class="form-grid">
+              {region.fields.map((f) => (
+                <div class="field">
+                  <label>{f.label}</label>
+                  <input name={f.name} value={regionValue(f.name, content)} />
+                </div>
+              ))}
+            </div>
+          )}
+          {region.textareas.map((t) => (
+            <div class="field">
+              <label>{t.label}</label>
+              <textarea name={t.name} rows={t.isSpecial ? 4 : 3}>{regionValue(t.name, content)}</textarea>
+            </div>
+          ))}
+          <p class="chart-note" style="margin:0">{region.blurb}</p>
+          <div><button class="btn btn--primary btn--sm btn--mono" type="submit">save {region.label.toLowerCase()}</button></div>
+        </form>
+      </details>
+    );
+  })}
+
+  <h2 style="font-size:var(--text-xl);margin:40px 0 16px">Custom pages</h2>
+
+  <div class="table-wrap" style="margin-bottom:24px">
+    <table class="admin-table">
+      <thead><tr><th>slug</th><th>title</th><th>published</th><th>actions</th></tr></thead>
+      <tbody>
+        {pages.length === 0 && (
+          <tr><td colspan="4" class="muted">No custom pages yet — build one below.</td></tr>
+        )}
+        {pages.map((p) => (
+          <tr>
+            <td><code style="font-family:var(--font-mono)">/{p.slug}</code></td>
+            <td>{p.title}</td>
+            <td>{p.published ? "✓" : "draft"}</td>
+            <td class="actions">
+              <a class="btn btn--solid btn--sm btn--mono" href={`/${p.slug}`} target="_blank" rel="noopener">view</a>
+              <form method="post" action="/admin/api/action" style="display:inline">
+                <input type="hidden" name="op" value="delete-page" />
+                <input type="hidden" name="csrf" value={csrf} />
+                <input type="hidden" name="back" value={back} />
+                <input type="hidden" name="id" value={p.id} />
+                <button class="btn btn--danger btn--sm btn--mono" type="submit">delete</button>
+              </form>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+
+  {
+    pages.map((p) => {
+      const blocks = blockEditors(p);
+      return (
+        <details class="form-block" style="margin-bottom:16px">
+          <summary>edit “{p.title}” <span class="kicker" style="margin-left:auto">/{p.slug}</span></summary>
+          <form class="form-body" method="post" action="/admin/api/action">
+            <input type="hidden" name="op" value="save-page" />
+            <input type="hidden" name="csrf" value={csrf} />
+            <input type="hidden" name="back" value={back} />
+            <input type="hidden" name="id" value={p.id} />
+            <div class="form-grid">
+              <div class="field"><label>slug</label><input name="slug" value={p.slug} /></div>
+              <div class="field"><label>title</label><input name="title" value={p.title} /></div>
+              <div class="field"><label>kicker / eyebrow</label><input name="kicker" value={p.kicker} /></div>
+              <div class="field"><label>sort</label><input name="sort" value={p.sort} /></div>
+            </div>
+            <div class="field"><label>intro</label><textarea name="intro" rows="2">{p.intro}</textarea></div>
+            <label class="switch">
+              <input type="checkbox" name="published" checked={p.published === 1} />
+              <span class="track" aria-hidden="true" />
+              <span class="sw-label">published</span>
+            </label>
+            <BlockList blocks={blocks} />
+            <div><button class="btn btn--primary btn--sm btn--mono" type="submit">save page</button></div>
+          </form>
+        </details>
+      );
+    })
+  }
+
+  <details class="form-block">
+    <summary>+ new custom page</summary>
+    <form class="form-body" method="post" action="/admin/api/action">
+      <input type="hidden" name="op" value="save-page" />
+      <input type="hidden" name="csrf" value={csrf} />
+      <input type="hidden" name="back" value={back} />
+      <div class="form-grid">
+        <div class="field"><label>slug</label><input name="slug" placeholder="now" /></div>
+        <div class="field"><label>title</label><input name="title" placeholder="What's next" /></div>
+        <div class="field"><label>kicker / eyebrow</label><input name="kicker" placeholder="the plan" /></div>
+        <div class="field"><label>sort</label><input name="sort" value="0" /></div>
+      </div>
+      <div class="field"><label>intro</label><textarea name="intro" rows="2" placeholder="One or two sentences under the title." /></textarea></div>
+      <label class="switch">
+        <input type="checkbox" name="published" checked />
+        <span class="track" aria-hidden="true" />
+        <span class="sw-label">published</span>
+      </label>
+      <BlockList blocks={[]} />
+      <div><button class="btn btn--primary btn--sm btn--mono" type="submit">create page</button></div>
+    </form>
+  </details>
+</AdminLayout>
+
+<script define:vars={{ blocks: [] }}>
+  // block builder: add block rows dynamically before submit
+  document.addEventListener("click", (e) => {
+    const btn = (e.target as HTMLElement).closest("[data-add-block]");
+    if (!btn) return;
+    const container = btn.closest("form")?.querySelector("[data-blocks]");
+    if (!container) return;
+    const type = btn.dataset.addBlock || "text";
+    const i = container.children.length;
+    const row = document.createElement("div");
+    row.className = "form-block";
+    row.style.cssText = "border:1px dashed var(--border);border-radius:8px;padding:12px;display:grid;gap:8px";
+    const label = document.createElement("span");
+    label.className = "kicker";
+    label.textContent = `block ${i + 1} · ${type}`;
+    row.appendChild(label);
+    const fieldsFor: Record<string, [string, string][]> = {
+      heading: [["text", "Heading text"]],
+      text: [["text", "Paragraph text"]],
+      image: [["src", "Image URL (or /media/ID)"], ["alt", "Alt text"], ["ratio", "Aspect ratio (16 / 9)"]],
+      cta: [["eyebrow", "Eyebrow"], ["title", "Title"], ["body", "Body"], ["url", "URL"], ["label", "Button label"]],
+      links: [["items", "One per line: label | url | note"]],
+      ticker: [["parts", "One per line: name | note"]]
+    };
+    for (const [key, lbl] of fieldsFor[type] ?? []) {
+      const field = document.createElement("div");
+      field.className = "field";
+      const id = `b${i}_${key}`;
+      field.innerHTML = `<label for="${id}">${lbl}</label>`;
+      const input = ["text", "links", "ticker"].includes(type) && (key === "text" || key === "items" || key === "parts")
+        ? Object.assign(document.createElement("textarea"), { rows: 2 })
+        : document.createElement("input");
+      input.name = `b${i}_${key}`;
+      input.id = id;
+      field.appendChild(input);
+      row.appendChild(field);
+    }
+    const hidden = document.createElement("input");
+    hidden.type = "hidden";
+    hidden.name = `block_type_${i}`;
+    hidden.value = type;
+    row.appendChild(hidden);
+    container.appendChild(row);
+    // sync the registry of block types
+    syncTypes(container);
+  });
+  function syncTypes(container: HTMLElement) {
+    const form = container.closest("form");
+    if (!form) return;
+    const types = Array.from(container.children).map((c) => (c.querySelector("input[name^='block_type_']") as HTMLInputElement)?.value || "");
+    let registry = form.querySelector("input[name='block_types']") as HTMLInputElement;
+    if (!registry) {
+      registry = document.createElement("input");
+      registry.type = "hidden";
+      registry.name = "block_types";
+      form.appendChild(registry);
+    }
+    registry.value = types.join(",");
+  }
+</script>

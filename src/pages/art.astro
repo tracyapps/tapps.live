@@ -1,0 +1,73 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import DuoImage from "../components/DuoImage.astro";
+import { getFeedItems, getFeedStatuses } from "../feeds/runner";
+import { timeAgo } from "../lib/format";
+
+const items = getFeedItems("art", 24);
+const withImages = items.filter((i) => i.image);
+const status = getFeedStatuses().find((s) => s.id === "art");
+const feedOn = status?.enabled;
+---
+<BaseLayout title="Art — tapps.live" description="Latest artwork from artbytapps.com, restyled live in the hub's duotone ink system.">
+  <section class="hero section--flush">
+    <div class="hero-bg" aria-hidden="true"></div>
+    <div class="wrap hero-inner">
+      <span class="eyebrow">the wall</span>
+      <h1 class="wordmark glitch" data-text="ADD SOME COLOR" style="font-size:clamp(44px,11vw,150px)">ADD SOME COLOR</h1>
+      <p class="hero-sub">
+        Fresh work from <a class="link-arrow" href="https://artbytapps.com" target="_blank" rel="noopener noreferrer">artbytapps.com</a>,
+        pulled from its RSS feed and pressed through the hub's two-ink duotone press. Every piece gets a colorway — tap the
+        <span class="tag" style="text-transform:none">↻</span> to reroll the inks. The originals, prints, and the shop live at the source.
+      </p>
+      {items.length > 0 && (
+        <p style="margin-top:20px">
+          <span class="kicker">{items.length} latest pieces · updated {timeAgo(status?.lastRefreshAt)}</span>
+        </p>
+      )}
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      {feedOn === false ? (
+        <div class="tile">
+          <span class="kicker">feed off</span>
+          <h3 class="tile-title">The art wall is switched off</h3>
+          <p>Nothing is broken — the artbytapps.com feed is toggled off in the admin console. Flip it back on and the wall refills on the next refresh.</p>
+          <a class="link-arrow" href="https://artbytapps.com" target="_blank" rel="noopener noreferrer">visit artbytapps.com meanwhile ↗</a>
+        </div>
+      ) : withImages.length > 0 ? (
+        <div class="art-grid">
+          {withImages.map((a, i) => (
+            <a class="art-card reveal" href={a.url} target="_blank" rel="noopener noreferrer" style={`--reveal-delay:${(i % 4) * 60}ms`}>
+              <DuoImage src={a.image!} alt={a.title} seed={a.guid} ratio="4 / 5" />
+              <figcaption>
+                <span class="art-title">{a.title}</span>
+                <span class="kicker">{timeAgo(a.publishedAt)} · artbytapps.com ↗</span>
+              </figcaption>
+            </a>
+          ))}
+        </div>
+      ) : (
+        <div class="grid grid--2">
+          <div class="tile">
+            <span class="kicker">{status?.status === "error" ? "feed hiccup" : "warming up"}</span>
+            <h3 class="tile-title">No art on the wall yet</h3>
+            <p>
+              {status?.status === "error" && status.lastError
+                ? `Last refresh failed: ${status.lastError}. The hub retries automatically — details live on the admin status page.`
+                : "The artbytapps.com feed hasn't finished its first refresh, or the feed returned no image posts. Check back in a minute."}
+            </p>
+          </div>
+          <div class="tile">
+            <span class="kicker">the source</span>
+            <h3 class="tile-title">artbytapps.com</h3>
+            <p>Add some color to your life — prints, originals, and whatever's next. New design coming soon; the RSS feed keeps this wall in sync either way.</p>
+            <a class="link-arrow" href="https://artbytapps.com" target="_blank" rel="noopener noreferrer">visit the shop ↗</a>
+          </div>
+        </div>
+      )}
+    </div>
+  </section>
+</BaseLayout>

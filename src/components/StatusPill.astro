@@ -1,0 +1,9 @@
+---
+interface Props {
+  status: string;
+  label: string;
+  class?: string;
+}
+const { status, label, class: cls } = Astro.props;
+---
+<span class={`status status--${status} ${cls ?? ""}`}><span class="pip" aria-hidden="true"></span>{label}</span>

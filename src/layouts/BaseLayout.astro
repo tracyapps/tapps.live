@@ -1,0 +1,238 @@
+---
+// Base layout — design-system chrome: nav from the DB, footer, global
+// behaviors (nav toggle, CT clock, reveals, counters, duo rerolls), and the
+// SVG duotone filter defs every DuoImage can reference.
+import "../styles/theme.css";
+import { getNav, getKv, getProjects, getLinks } from "../lib/db";
+import { COLORWAYS } from "../lib/palette";
+
+interface Props {
+  title: string;
+  description?: string;
+  bodyClass?: string;
+}
+
+const { title, description = "The live hub of tracy apps (@tapps): projects, activity, streams, art, and links. Milwaukee product designer." } = Astro.props;
+
+const nav = getNav();
+const projects = getProjects();
+const socials = getLinks("social");
+const profile = getKv("profile", { email: "tracyapps@gmail.com", shortBlurb: "" });
+const path = Astro.url.pathname;
+
+const tickerParts = projects
+  .filter((p) => p.progress !== null || p.status_label)
+  .map((p) => ({ name: p.name, note: p.status_label || `${p.progress}% built` }));
+
+const duoDefs = COLORWAYS.map((c) => {
+  const r = c.shadow.slice(1).match(/.{2}/g)!.map((h) => parseInt(h, 16));
+  const g = c.highlight.slice(1).match(/.{2}/g)!.map((h) => parseInt(h, 16));
+  return {
+    id: `duo-${c.id}`,
+    label: c.label,
+    r0: (r[0] / 255).toFixed(4), r1: (g[0] / 255).toFixed(4),
+    g0: (r[1] / 255).toFixed(4), g1: (g[1] / 255).toFixed(4),
+    b0: (r[2] / 255).toFixed(4), b1: (g[2] / 255).toFixed(4)
+  };
+});
+---
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#050505" />
+  <meta name="color-scheme" content="dark" />
+  <title>{title}</title>
+  <meta name="description" content={description} />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+    <defs>
+      {duoDefs.map((d) => (
+        <filter id={d.id} color-interpolation-filters="sRGB">
+          <feColorMatrix
+            type="matrix"
+            values="0.2126 0.7152 0.0722 0 0
+                    0.2126 0.7152 0.0722 0 0
+                    0.2126 0.7152 0.0722 0 0
+                    0 0 0 1 0" />
+          <feComponentTransfer result="duo">
+            <feFuncR type="table" tableValues={`${d.r0} ${d.r1}`} />
+            <feFuncG type="table" tableValues={`${d.g0} ${d.g1}`} />
+            <feFuncB type="table" tableValues={`${d.b0} ${d.b1}`} />
+          </feComponentTransfer>
+        </filter>
+      ))}
+    </defs>
+  </svg>
+</head>
+<body class={bodyClass}>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-nav">
+    <div class="wrap nav-inner">
+      <a class="brand" href="/"><span class="dot" aria-hidden="true"></span>tapps<span style="color:var(--accent)">.live</span></a>
+      <nav id="primary-nav" class="nav-links" aria-label="Primary">
+        {nav.map((item) => {
+          const current = item.href === "/" ? path === "/" : path.startsWith(item.href);
+          return (
+            <a href={item.href} aria-current={current ? "page" : undefined}>
+              {item.label}
+            </a>
+          );
+        })}
+      </nav>
+      <a class="btn btn--ghost btn--sm btn--mono" href="/links#contact">say hi</a>
+      <button class="nav-toggle" type="button" aria-label="Toggle navigation" aria-expanded="false" aria-controls="primary-nav">
+        <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 5h16M2 10h16M2 15h16" /></svg>
+      </button>
+    </div>
+  </header>
+
+  <main id="main">
+    <slot />
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="footer-grid">
+        <div>
+          <h4>The short version</h4>
+          <p class="muted" style="font-size:14px;max-width:38ch">{profile.shortBlurb}</p>
+          <p style="margin-top:14px"><a class="link-arrow" href={`mailto:${profile.email}`}>{profile.email}</a></p>
+          <p style="margin-top:14px"><a class="link-arrow" href="/system">the design system →</a></p>
+        </div>
+        <div>
+          <h4>Projects</h4>
+          <ul>
+            {projects.slice(0, 5).map((p) => (
+              <li><a href={p.url} target="_blank" rel="noopener noreferrer">{p.name}</a></li>
+            ))}
+          </ul>
+        </div>
+        <div>
+          <h4>Elsewhere</h4>
+          <ul>
+            {socials.slice(0, 4).map((s) => (
+              <li><a href={s.url} target="_blank" rel="noopener noreferrer">{s.handle || s.name}</a></li>
+            ))}
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>&copy; <span data-year>2026</span> tracy apps</span>
+        <span>built loud · tapps.live</span>
+        <span data-clock>— CT</span>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // ── global island: nav, clock, reveals, counters, duo rerolls ──────────
+    const $ = (sel: string, root: ParentNode = document) => root.querySelector(sel);
+    const $$ = (sel: string, root: ParentNode = document) => Array.from(root.querySelectorAll(sel));
+
+    // nav toggle
+    const toggle = $(".nav-toggle") as HTMLButtonElement | null;
+    const links = $("#primary-nav");
+    if (toggle && links) {
+      const close = () => {
+        links.classList.remove("is-open");
+        toggle.setAttribute("aria-expanded", "false");
+      };
+      toggle.addEventListener("click", () => {
+        const open = links.classList.toggle("is-open");
+        toggle.setAttribute("aria-expanded", open ? "true" : "false");
+      });
+      $$("a", links).forEach((a) => a.addEventListener("click", close));
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && links.classList.contains("is-open")) {
+          close();
+          toggle.focus();
+        }
+      });
+      document.addEventListener("click", (e) => {
+        if (!links.classList.contains("is-open")) return;
+        if (links.contains(e.target as Node) || toggle.contains(e.target as Node)) return;
+        close();
+      });
+    }
+
+    // CT clock
+    const clocks = $$("[data-clock]");
+    if (clocks.length) {
+      const tick = () => {
+        const time = new Date().toLocaleTimeString("en-US", {
+          timeZone: "America/Chicago",
+          hour: "2-digit",
+          minute: "2-digit"
+        });
+        clocks.forEach((n) => (n.textContent = time + " CT"));
+      };
+      tick();
+      setInterval(tick, 30_000);
+    }
+
+    // year
+    $$("[data-year]").forEach((n) => (n.textContent = String(new Date().getFullYear())));
+
+    // scroll reveals
+    const revealNodes = $$(".reveal:not(.is-in)");
+    if ("IntersectionObserver" in window) {
+      const io = new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries) {
+            if (entry.isIntersecting) {
+              (entry.target as HTMLElement).classList.add("is-in");
+              io.unobserve(entry.target);
+            }
+          }
+        },
+        { rootMargin: "0px 0px -8% 0px", threshold: 0.08 }
+      );
+      revealNodes.forEach((n) => io.observe(n));
+    } else {
+      revealNodes.forEach((n) => n.classList.add("is-in"));
+    }
+
+    // animated counters
+    const reduced = !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    $$<HTMLElement>("[data-count]").forEach((node) => {
+      const target = parseFloat(node.dataset.count || "");
+      const suffix = node.dataset.suffix || "";
+      if (Number.isNaN(target)) return;
+      const finalText = (t: number) => (target % 1 === 0 ? String(Math.round(t)) : t.toFixed(1)) + suffix;
+      if (reduced) {
+        node.textContent = finalText(target);
+        return;
+      }
+      const duration = 900;
+      const start = performance.now();
+      const frame = (now: number) => {
+        const t = Math.min((now - start) / duration, 1);
+        const eased = 1 - Math.pow(1 - t, 3);
+        node.textContent = finalText(target * eased);
+        if (t < 1) requestAnimationFrame(frame);
+      };
+      requestAnimationFrame(frame);
+    });
+
+    // duotone reroll — every .duo figure can cycle its colorway
+    const CYCLE = ["magenta-lime", "magenta-mint", "ultra-mint", "ultra-sun", "hot-sun", "hot-mint", "mint-magenta", "sun-ultra", "lime-ultra"];
+    document.addEventListener("click", (e) => {
+      const btn = (e.target as HTMLElement).closest<HTMLElement>("[data-duo-reroll]");
+      if (!btn) return;
+      const duo = btn.closest<HTMLElement>(".duo");
+      if (!duo) return;
+      const current = duo.dataset.colorway || CYCLE[0];
+      const next = CYCLE[(CYCLE.indexOf(current) + 1 + CYCLE.length) % CYCLE.length] || CYCLE[0];
+      duo.dataset.colorway = next;
+      const img = duo.querySelector("img");
+      if (img) img.style.filter = `url(#duo-${next}) saturate(1.05)`;
+    });
+  </script>
+</body>
+</html>
